@@ -1,0 +1,1644 @@
+{%- comment -%}
+  Customer Dashboard Section
+  ──────────────────────────
+  Personalized homepage section for logged-in customers:
+    • Welcome message with customer first name
+    • Recent order slider with one-click Reorder → cart drawer
+    • Next Autoship card (configure via subscription app metafields or fallback text)
+    • Product recommendations slider seeded from purchase history
+
+  Guest state: optional sign-in / register prompt for logged-out visitors.
+
+  Subscription app note:
+    The "Next Autoship" date is driven by the metafield namespace + key you
+    configure in the schema settings. Common Recharge setup:
+      namespace: recharge   key: next_charge_scheduled_at
+    If your app uses a different namespace/key, update the settings.
+    The JavaScript block below also fires a `customer-dashboard:ready` event
+    on the section element so your subscription app can inject live data.
+{%- endcomment -%}
+
+{%- liquid
+  assign is_logged_in = false
+  if customer
+    assign is_logged_in = true
+  endif
+  assign show_section = false
+  if is_logged_in
+    assign show_section = true
+  elsif section.settings.show_logged_out
+    assign show_section = true
+  endif
+-%}
+
+{%- if show_section -%}
+
+<style>
+  /* ── Scope all rules to this section instance ── */
+  #cd-{{ section.id }} {
+    background-color: {{ section.settings.section_bg }};
+    padding: {{ section.settings.section_padding_y }}px 0;
+  }
+  #cd-{{ section.id }} .cd-inner {
+    max-width: {{ section.settings.container_width }}px;
+    margin-inline: auto;
+    padding-inline: clamp(16px, 4vw, 40px);
+  }
+
+  /* Section-level headings (orders / autoship / recs) */
+  #cd-{{ section.id }} .cd-heading {
+    font-size: {{ section.settings.section_heading_size }}px;
+    font-weight: {{ section.settings.heading_weight }};
+    color: {{ section.settings.section_heading_color }};
+    margin: 0 0 16px;
+    line-height: 1.2;
+  }
+
+  /* ── Welcome ── */
+  #cd-{{ section.id }} .cd-welcome {
+    background-color: {{ section.settings.welcome_bg }};
+    border-radius: {{ section.settings.welcome_radius }}px;
+    padding: {{ section.settings.welcome_padding }}px;
+    margin-bottom: {{ section.settings.block_gap }}px;
+  }
+  #cd-{{ section.id }} .cd-welcome__name {
+    font-size: {{ section.settings.welcome_heading_size }}px;
+    font-weight: {{ section.settings.heading_weight }};
+    color: {{ section.settings.welcome_text_color }};
+    margin: 0 0 8px;
+    line-height: 1.2;
+  }
+  #cd-{{ section.id }} .cd-welcome__sub {
+    font-size: {{ section.settings.welcome_sub_size }}px;
+    color: {{ section.settings.welcome_sub_color }};
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  /* ── Middle row (orders + autoship) ── */
+  #cd-{{ section.id }} .cd-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: {{ section.settings.block_gap }}px;
+    margin-bottom: {{ section.settings.block_gap }}px;
+  }
+  @media (min-width: 900px) {
+    #cd-{{ section.id }} .cd-row {
+      grid-template-columns: 2fr 1fr;
+      align-items: start;
+    }
+  }
+  #cd-{{ section.id }} .cd-row > *:only-child {
+    grid-column: 1 / -1;
+  }
+
+  /* ── Orders block ── */
+  #cd-{{ section.id }} .cd-orders-wrap {
+    background-color: {{ section.settings.orders_section_bg }};
+    border-radius: {{ section.settings.orders_card_radius }}px;
+    padding: {{ section.settings.welcome_padding }}px;
+  }
+
+  /* Order card */
+  #cd-{{ section.id }} .cd-order-card {
+    background-color: {{ section.settings.orders_card_bg }};
+    border-radius: {{ section.settings.orders_card_radius }}px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    color: {{ section.settings.orders_text_color }};
+    min-height: 260px;
+  }
+  #cd-{{ section.id }} .cd-order-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(128,128,128,0.15);
+    padding-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  #cd-{{ section.id }} .cd-order-card__num {
+    font-size: 15px;
+    font-weight: 700;
+    color: {{ section.settings.orders_text_color }};
+  }
+  #cd-{{ section.id }} .cd-order-card__date {
+    font-size: 13px;
+    color: {{ section.settings.orders_subtext_color }};
+  }
+  #cd-{{ section.id }} .cd-order-card__items {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  #cd-{{ section.id }} .cd-order-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  #cd-{{ section.id }} .cd-order-item__img {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+    background-color: rgba(128,128,128,0.1);
+  }
+  #cd-{{ section.id }} .cd-order-item__img--placeholder {
+    width: 56px;
+    height: 56px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    background-color: rgba(128,128,128,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #cd-{{ section.id }} .cd-order-item__info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  #cd-{{ section.id }} .cd-order-item__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: {{ section.settings.orders_text_color }};
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #cd-{{ section.id }} .cd-order-item__variant,
+  #cd-{{ section.id }} .cd-order-item__qty {
+    font-size: 12px;
+    color: {{ section.settings.orders_subtext_color }};
+    line-height: 1.3;
+  }
+  #cd-{{ section.id }} .cd-order-card__more {
+    font-size: 12px;
+    color: {{ section.settings.orders_subtext_color }};
+    margin: 0;
+  }
+  #cd-{{ section.id }} .cd-order-card__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid rgba(128,128,128,0.15);
+    padding-top: 12px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  #cd-{{ section.id }} .cd-order-card__total {
+    font-size: 15px;
+    font-weight: 700;
+    color: {{ section.settings.orders_text_color }};
+  }
+  #cd-{{ section.id }} .cd-order-card__actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* ── Autoship block ── */
+  #cd-{{ section.id }} .cd-autoship-wrap {
+    background-color: {{ section.settings.autoship_bg }};
+    border-radius: {{ section.settings.autoship_radius }}px;
+    padding: {{ section.settings.welcome_padding }}px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  #cd-{{ section.id }} .cd-autoship-wrap .cd-heading {
+    color: {{ section.settings.autoship_text_color }};
+  }
+  #cd-{{ section.id }} .cd-autoship-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  #cd-{{ section.id }} .cd-autoship-card__label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+    color: {{ section.settings.autoship_accent_color }};
+    margin: 0;
+  }
+  #cd-{{ section.id }} .cd-autoship-card__date {
+    font-size: 22px;
+    font-weight: 700;
+    color: {{ section.settings.autoship_text_color }};
+    margin: 0;
+    line-height: 1.2;
+  }
+  #cd-{{ section.id }} .cd-autoship-card__sub {
+    font-size: 13px;
+    color: {{ section.settings.autoship_text_color }};
+    opacity: 0.65;
+    margin: 0;
+    line-height: 1.5;
+  }
+  #cd-{{ section.id }} .cd-autoship-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.12);
+    border: none;
+    margin: 4px 0;
+  }
+
+  /* ── Recommendations block ── */
+  #cd-{{ section.id }} .cd-recs-wrap {
+    background-color: {{ section.settings.recs_section_bg }};
+    border-radius: {{ section.settings.orders_card_radius }}px;
+    padding: {{ section.settings.welcome_padding }}px;
+  }
+  #cd-{{ section.id }} .cd-recs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  @media (min-width: 640px) {
+    #cd-{{ section.id }} .cd-recs-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  @media (min-width: 1024px) {
+    #cd-{{ section.id }} .cd-recs-grid {
+      grid-template-columns: repeat({{ section.settings.recs_columns }}, 1fr);
+    }
+  }
+  #cd-{{ section.id }} .cd-rec-card {
+    background-color: {{ section.settings.recs_card_bg }};
+    border-radius: {{ section.settings.recs_card_radius }}px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  #cd-{{ section.id }} .cd-rec-card__img-wrap {
+    display: block;
+    line-height: 0;
+    overflow: hidden;
+  }
+  #cd-{{ section.id }} .cd-rec-card__img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s ease;
+  }
+  #cd-{{ section.id }} .cd-rec-card:hover .cd-rec-card__img {
+    transform: scale(1.04);
+  }
+  #cd-{{ section.id }} .cd-rec-card__body {
+    padding: 14px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  #cd-{{ section.id }} .cd-rec-card__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: {{ section.settings.recs_text_color }};
+    text-decoration: none;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  #cd-{{ section.id }} .cd-rec-card__title:hover {
+    text-decoration: underline;
+  }
+  #cd-{{ section.id }} .cd-rec-card__price {
+    font-size: 14px;
+    font-weight: 700;
+    color: {{ section.settings.recs_text_color }};
+    margin: 0;
+  }
+  #cd-{{ section.id }} .cd-rec-card__compare {
+    font-size: 12px;
+    color: {{ section.settings.orders_subtext_color }};
+    text-decoration: line-through;
+    margin: 0;
+  }
+  #cd-{{ section.id }} .cd-rec-card__atc {
+    margin-top: auto;
+    width: 100%;
+  }
+
+  /* ── Shared buttons ── */
+  #cd-{{ section.id }} .cd-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 9px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    text-decoration: none;
+    border-radius: {{ section.settings.reorder_btn_radius }}px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: opacity 0.2s ease, transform 0.1s ease;
+    white-space: nowrap;
+    line-height: 1;
+    background: none;
+  }
+  #cd-{{ section.id }} .cd-btn:hover {
+    opacity: 0.82;
+  }
+  #cd-{{ section.id }} .cd-btn:active {
+    transform: scale(0.97);
+  }
+  #cd-{{ section.id }} .cd-btn:disabled,
+  #cd-{{ section.id }} .cd-btn[aria-busy="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  #cd-{{ section.id }} .cd-btn--primary {
+    background-color: {{ section.settings.reorder_btn_bg }};
+    color: {{ section.settings.reorder_btn_color }};
+  }
+  #cd-{{ section.id }} .cd-btn--reorder {
+    background-color: {{ section.settings.reorder_btn_bg }};
+    color: {{ section.settings.reorder_btn_color }};
+    border-radius: {{ section.settings.reorder_btn_radius }}px;
+  }
+  #cd-{{ section.id }} .cd-btn--outline {
+    background-color: transparent;
+    color: {{ section.settings.orders_text_color }};
+    border-color: currentColor;
+  }
+  #cd-{{ section.id }} .cd-btn--autoship {
+    align-self: flex-start;
+    background-color: {{ section.settings.autoship_accent_color }};
+    color: {{ section.settings.autoship_bg }};
+    border-radius: {{ section.settings.reorder_btn_radius }}px;
+  }
+  #cd-{{ section.id }} .cd-btn--atc {
+    background-color: {{ section.settings.recs_btn_bg }};
+    color: {{ section.settings.recs_btn_color }};
+    border-radius: {{ section.settings.recs_card_radius }}px;
+    font-size: 13px;
+    padding: 9px 14px;
+  }
+  #cd-{{ section.id }} .cd-btn--guest-primary {
+    background-color: {{ section.settings.reorder_btn_bg }};
+    color: {{ section.settings.reorder_btn_color }};
+  }
+  #cd-{{ section.id }} .cd-btn--guest-outline {
+    background-color: transparent;
+    color: {{ section.settings.section_heading_color }};
+    border-color: currentColor;
+  }
+
+  /* ── Slider (order cards) ── */
+  #cd-{{ section.id }} .cd-slider {
+    position: relative;
+  }
+  #cd-{{ section.id }} .cd-slider__viewport {
+    overflow: hidden;
+    border-radius: {{ section.settings.orders_card_radius }}px;
+  }
+  #cd-{{ section.id }} .cd-slider__track {
+    display: flex;
+    will-change: transform;
+    transition: transform 0.38s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  #cd-{{ section.id }} .cd-slider__slide {
+    flex: 0 0 100%;
+    min-width: 0;
+  }
+  #cd-{{ section.id }} .cd-slider__controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 16px;
+  }
+  #cd-{{ section.id }} .cd-slider__nav {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid {{ section.settings.orders_text_color }};
+    background: transparent;
+    color: {{ section.settings.orders_text_color }};
+    font-size: 20px;
+    line-height: 1;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background 0.2s, color 0.2s;
+    flex-shrink: 0;
+  }
+  #cd-{{ section.id }} .cd-slider__nav:hover {
+    background: {{ section.settings.orders_text_color }};
+    color: {{ section.settings.orders_card_bg }};
+  }
+  #cd-{{ section.id }} .cd-slider__dots {
+    display: flex;
+    gap: 7px;
+    align-items: center;
+  }
+  #cd-{{ section.id }} .cd-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    background: {{ section.settings.orders_subtext_color }};
+    opacity: 0.45;
+    transition: opacity 0.2s, transform 0.2s, background 0.2s;
+    flex-shrink: 0;
+  }
+  #cd-{{ section.id }} .cd-dot.is-active {
+    background: {{ section.settings.orders_text_color }};
+    opacity: 1;
+    transform: scale(1.35);
+  }
+
+  /* ── Recs pagination ── */
+  #cd-{{ section.id }} .cd-recs-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 20px;
+  }
+  #cd-{{ section.id }} .cd-recs-pagination .cd-slider__nav {
+    border-color: {{ section.settings.section_heading_color }};
+    color: {{ section.settings.section_heading_color }};
+  }
+  #cd-{{ section.id }} .cd-recs-pagination .cd-slider__nav:hover {
+    background: {{ section.settings.section_heading_color }};
+    color: {{ section.settings.recs_section_bg }};
+  }
+  #cd-{{ section.id }} .cd-recs-pagination .cd-dot {
+    background: {{ section.settings.section_heading_color }};
+  }
+  #cd-{{ section.id }} .cd-recs-pagination .cd-dot.is-active {
+    background: {{ section.settings.section_heading_color }};
+  }
+
+  /* ── Loading / empty states ── */
+  #cd-{{ section.id }} .cd-state-msg {
+    text-align: center;
+    padding: 40px 20px;
+    color: {{ section.settings.orders_subtext_color }};
+    font-size: 14px;
+    margin: 0;
+  }
+
+  /* ── Guest state ── */
+  #cd-{{ section.id }} .cd-guest {
+    text-align: center;
+    padding: 64px 20px;
+  }
+  #cd-{{ section.id }} .cd-guest__heading {
+    font-size: {{ section.settings.welcome_heading_size }}px;
+    font-weight: {{ section.settings.heading_weight }};
+    color: {{ section.settings.section_heading_color }};
+    margin: 0 0 12px;
+    line-height: 1.2;
+  }
+  #cd-{{ section.id }} .cd-guest__text {
+    color: {{ section.settings.orders_subtext_color }};
+    font-size: 16px;
+    margin: 0 0 28px;
+  }
+  #cd-{{ section.id }} .cd-guest__actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  /* ── Toast notification ── */
+  .cd-toast[data-section="{{ section.id }}"] {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(12px);
+    background: #1a1a1a;
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    transition: opacity 0.28s ease, transform 0.28s ease;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.22);
+  }
+  .cd-toast[data-section="{{ section.id }}"].is-visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+
+<section
+  id="cd-{{ section.id }}"
+  class="customer-dashboard"
+  aria-label="{{ section.settings.aria_label | default: 'Customer dashboard' }}"
+  {%- if is_logged_in -%}
+    data-customer-id="{{ customer.id }}"
+    {%- assign seed_id = customer.orders.first.line_items.first.product_id -%}
+    data-seed-product="{{ seed_id | default: '' }}"
+    data-recs-limit="{{ section.settings.recs_limit }}"
+    data-cart-event="{{ section.settings.cart_drawer_event }}"
+    {%- comment -%} Autoship metafield path: "namespace.key" {%- endcomment -%}
+    data-autoship-meta="{{ section.settings.autoship_meta_namespace }}.{{ section.settings.autoship_meta_key }}"
+  {%- endif -%}
+>
+  <div class="cd-inner">
+
+    {%- if is_logged_in -%}
+
+      {%- comment -%}────── WELCOME ──────{%- endcomment -%}
+      {%- if section.settings.show_welcome -%}
+      <div class="cd-welcome">
+        <h2 class="cd-welcome__name">
+          {{ section.settings.welcome_prefix }}{{ customer.first_name }}{{ section.settings.welcome_suffix }}
+        </h2>
+        {%- if section.settings.welcome_subtext != blank -%}
+          <p class="cd-welcome__sub">{{ section.settings.welcome_subtext }}</p>
+        {%- endif -%}
+      </div>
+      {%- endif -%}
+
+      {%- comment -%}────── MIDDLE ROW ──────{%- endcomment -%}
+      {%- if section.settings.show_orders or section.settings.show_autoship -%}
+      <div class="cd-row">
+
+        {%- comment -%}── Recent Orders ──{%- endcomment -%}
+        {%- if section.settings.show_orders -%}
+        <div class="cd-orders-wrap">
+          {%- if section.settings.orders_heading != blank -%}
+            <h3 class="cd-heading">{{ section.settings.orders_heading }}</h3>
+          {%- endif -%}
+
+          {%- assign recent_orders = customer.orders | limit: section.settings.orders_limit -%}
+
+          {%- if recent_orders.size > 0 -%}
+            <div class="cd-slider" data-cd-slider="orders">
+              <div class="cd-slider__viewport">
+                <div class="cd-slider__track" data-cd-track>
+
+                  {%- for order in recent_orders -%}
+                  <div class="cd-slider__slide cd-order-card" data-order-index="{{ forloop.index0 }}">
+
+                    {%- comment -%}
+                      Embed line-item data for the Reorder button.
+                      The JS reads this JSON to build the /cart/add.js payload.
+                    {%- endcomment -%}
+                    <script type="application/json" class="cd-order-json">{"items":[{%- for item in order.line_items -%}{"id":{{ item.variant_id }},"quantity":{{ item.quantity }}}{% unless forloop.last %},{% endunless %}{%- endfor -%}]}</script>
+
+                    <div class="cd-order-card__header">
+                      <span class="cd-order-card__num">{{ order.name }}</span>
+                      <span class="cd-order-card__date">{{ order.created_at | date: section.settings.date_format }}</span>
+                    </div>
+
+                    <div class="cd-order-card__items">
+                      {%- for item in order.line_items limit: 3 -%}
+                      <div class="cd-order-item">
+                        {%- if item.image -%}
+                          <img
+                            class="cd-order-item__img"
+                            src="{{ item.image | image_url: width: 112 }}"
+                            alt="{{ item.image.alt | default: item.title | escape }}"
+                            width="56"
+                            height="56"
+                            loading="lazy">
+                        {%- else -%}
+                          <div class="cd-order-item__img--placeholder" aria-hidden="true">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                          </div>
+                        {%- endif -%}
+                        <div class="cd-order-item__info">
+                          <span class="cd-order-item__title">{{ item.title }}</span>
+                          {%- unless item.variant_title == 'Default Title' or item.variant_title == blank -%}
+                            <span class="cd-order-item__variant">{{ item.variant_title }}</span>
+                          {%- endunless -%}
+                          <span class="cd-order-item__qty">Qty: {{ item.quantity }}</span>
+                        </div>
+                      </div>
+                      {%- endfor -%}
+                      {%- if order.line_items.size > 3 -%}
+                        <p class="cd-order-card__more">+{{ order.line_items.size | minus: 3 }} more item(s)</p>
+                      {%- endif -%}
+                    </div>
+
+                    <div class="cd-order-card__footer">
+                      <span class="cd-order-card__total">{{ order.total_price | money }}</span>
+                      <div class="cd-order-card__actions">
+                        <a
+                          href="{{ order.order_status_url }}"
+                          class="cd-btn cd-btn--outline"
+                          target="_blank"
+                          rel="noopener noreferrer">
+                          {{ section.settings.view_order_label }}
+                        </a>
+                        <button
+                          type="button"
+                          class="cd-btn cd-btn--reorder"
+                          data-cd-reorder
+                          aria-label="{{ section.settings.reorder_label }} {{ order.name }}">
+                          {{ section.settings.reorder_label }}
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                  {%- endfor -%}
+
+                </div>
+              </div>
+
+              {%- if recent_orders.size > 1 -%}
+              <div class="cd-slider__controls" aria-label="Order slider controls">
+                <button type="button" class="cd-slider__nav" data-cd-prev aria-label="{{ section.settings.slider_prev_label }}">&#8249;</button>
+                <div class="cd-slider__dots" data-cd-dots role="tablist" aria-label="Order slides"></div>
+                <button type="button" class="cd-slider__nav" data-cd-next aria-label="{{ section.settings.slider_next_label }}">&#8250;</button>
+              </div>
+              {%- endif -%}
+            </div>
+
+          {%- else -%}
+            <p class="cd-state-msg">{{ section.settings.no_orders_text }}</p>
+          {%- endif -%}
+        </div>
+        {%- endif -%}
+
+        {%- comment -%}── Autoship ──{%- endcomment -%}
+        {%- if section.settings.show_autoship -%}
+        <div class="cd-autoship-wrap">
+          {%- if section.settings.autoship_heading != blank -%}
+            <h3 class="cd-heading">{{ section.settings.autoship_heading }}</h3>
+          {%- endif -%}
+
+          <div class="cd-autoship-card">
+            <p class="cd-autoship-card__label">{{ section.settings.autoship_next_label }}</p>
+
+            {%- comment -%}
+              Attempt to read next autoship date from customer metafield.
+              Configure the metafield namespace + key in section settings.
+              Recharge default: namespace=recharge, key=next_charge_scheduled_at
+            {%- endcomment -%}
+            {%- assign autoship_ns = section.settings.autoship_meta_namespace -%}
+            {%- assign autoship_key = section.settings.autoship_meta_key -%}
+            {%- assign autoship_date_raw = customer.metafields[autoship_ns][autoship_key] -%}
+
+            <p class="cd-autoship-card__date" id="cd-autoship-date-{{ section.id }}">
+              {%- if autoship_date_raw != blank -%}
+                {{ autoship_date_raw | date: section.settings.date_format }}
+              {%- else -%}
+                {{ section.settings.autoship_date_fallback }}
+              {%- endif -%}
+            </p>
+
+            {%- if section.settings.autoship_subtext != blank -%}
+              <hr class="cd-autoship-divider">
+              <p class="cd-autoship-card__sub">{{ section.settings.autoship_subtext }}</p>
+            {%- endif -%}
+
+            {%- if section.settings.autoship_manage_url != blank -%}
+              <a href="{{ section.settings.autoship_manage_url }}" class="cd-btn cd-btn--autoship">
+                {{ section.settings.autoship_manage_label }}
+              </a>
+            {%- endif -%}
+          </div>
+        </div>
+        {%- endif -%}
+
+      </div>
+      {%- endif -%}
+
+      {%- comment -%}────── RECOMMENDATIONS ──────{%- endcomment -%}
+      {%- if section.settings.show_recs -%}
+      <div class="cd-recs-wrap">
+        {%- if section.settings.recs_heading != blank -%}
+          <h3 class="cd-heading">{{ section.settings.recs_heading }}</h3>
+        {%- endif -%}
+
+        <div
+          class="cd-recs-grid"
+          id="cd-recs-grid-{{ section.id }}"
+          aria-live="polite"
+          aria-label="{{ section.settings.recs_heading | default: 'Product recommendations' }}">
+          <p class="cd-state-msg" style="grid-column:1/-1;" id="cd-recs-loading-{{ section.id }}">
+            {{ section.settings.recs_loading_text }}
+          </p>
+        </div>
+
+        <div class="cd-recs-pagination" id="cd-recs-pager-{{ section.id }}" style="display:none;" aria-label="Recommendations pages">
+          <button type="button" class="cd-slider__nav" data-cd-recs-prev aria-label="{{ section.settings.slider_prev_label }}">&#8249;</button>
+          <div class="cd-slider__dots" data-cd-recs-dots role="tablist"></div>
+          <button type="button" class="cd-slider__nav" data-cd-recs-next aria-label="{{ section.settings.slider_next_label }}">&#8250;</button>
+        </div>
+      </div>
+      {%- endif -%}
+
+    {%- else -%}
+
+      {%- comment -%}────── GUEST STATE ──────{%- endcomment -%}
+      <div class="cd-guest">
+        <h2 class="cd-guest__heading">{{ section.settings.guest_heading }}</h2>
+        {%- if section.settings.guest_subtext != blank -%}
+          <p class="cd-guest__text">{{ section.settings.guest_subtext }}</p>
+        {%- endif -%}
+        <div class="cd-guest__actions">
+          <a href="{{ routes.account_login_url }}" class="cd-btn cd-btn--guest-primary">
+            {{ section.settings.guest_login_label }}
+          </a>
+          <a href="{{ routes.account_register_url }}" class="cd-btn cd-btn--guest-outline">
+            {{ section.settings.guest_register_label }}
+          </a>
+        </div>
+      </div>
+
+    {%- endif -%}
+
+  </div>
+</section>
+
+{%- comment -%} Toast element (one per section instance) {%- endcomment -%}
+<div
+  class="cd-toast"
+  id="cd-toast-{{ section.id }}"
+  data-section="{{ section.id }}"
+  role="status"
+  aria-live="polite"
+  aria-atomic="true">
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const root = document.getElementById('cd-{{ section.id }}');
+  if (!root) return;
+
+  const toast       = document.getElementById('cd-toast-{{ section.id }}');
+  const cartEvent   = root.dataset.cartEvent  || 'cart:open';
+  const recsLimit   = parseInt(root.dataset.recsLimit, 10) || 6;
+  const seedProduct = root.dataset.seedProduct || '';
+  const COLS        = {{ section.settings.recs_columns }};
+
+  // ── Toast ──────────────────────────────────────────────
+  let _toastTimer;
+  function showToast(msg, ms = 3200) {
+    if (!toast) return;
+    clearTimeout(_toastTimer);
+    toast.textContent = msg;
+    toast.classList.add('is-visible');
+    _toastTimer = setTimeout(() => toast.classList.remove('is-visible'), ms);
+  }
+
+  // ── Open cart drawer (theme-agnostic) ──────────────────
+  function openCartDrawer() {
+    // Dispatch common events used by major Shopify themes
+    ['cart:open', 'CartDrawer:open', 'drawer:open:cart', cartEvent].forEach(function (name) {
+      document.dispatchEvent(new CustomEvent(name, { bubbles: true, detail: { source: 'customer-dashboard' } }));
+    });
+    // Fallback: click the most common cart trigger selectors
+    var triggers = [
+      '[data-cart-toggle]',
+      '[aria-controls="cart-drawer"]',
+      '[aria-controls="CartDrawer"]',
+      '.js-cart-toggle',
+      '#cart-icon-bubble',
+      '[data-drawer-trigger="cart"]'
+    ];
+    for (var i = 0; i < triggers.length; i++) {
+      var el = document.querySelector(triggers[i]);
+      if (el) { el.click(); break; }
+    }
+  }
+
+  // ── Update cart item count badge ───────────────────────
+  function refreshCartCount() {
+    return fetch('/cart.js', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (cart) {
+        document.querySelectorAll(
+          '[data-cart-count], .cart-count, .header__cart-count, [data-header-cart-count], .cart-icon__bubble'
+        ).forEach(function (el) {
+          el.textContent = cart.item_count;
+          el.setAttribute('aria-label', cart.item_count + ' items');
+        });
+      })
+      .catch(function () {});
+  }
+
+  // ── Add items to cart ──────────────────────────────────
+  function addToCart(items) {
+    return fetch('/cart/add.js', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ items: items })
+    }).then(function (r) {
+      if (!r.ok) return r.json().then(function (e) { throw new Error(e.description || 'Error adding to cart'); });
+      return r.json();
+    });
+  }
+
+  // ── Slider (order cards) ───────────────────────────────
+  var orderSliderEl = root.querySelector('[data-cd-slider="orders"]');
+  if (orderSliderEl) {
+    var track    = orderSliderEl.querySelector('[data-cd-track]');
+    var prevBtn  = orderSliderEl.querySelector('[data-cd-prev]');
+    var nextBtn  = orderSliderEl.querySelector('[data-cd-next]');
+    var dotsWrap = orderSliderEl.querySelector('[data-cd-dots]');
+    var slides   = Array.from(orderSliderEl.querySelectorAll('.cd-slider__slide'));
+    var current  = 0;
+
+    function buildDots() {
+      if (!dotsWrap || slides.length < 2) return;
+      dotsWrap.innerHTML = slides.map(function (_, i) {
+        return '<button type="button" class="cd-dot' + (i === 0 ? ' is-active' : '') +
+          '" data-idx="' + i + '" role="tab" aria-selected="' + (i === 0) +
+          '" aria-label="Order slide ' + (i + 1) + '"></button>';
+      }).join('');
+      dotsWrap.querySelectorAll('.cd-dot').forEach(function (dot) {
+        dot.addEventListener('click', function () { goTo(parseInt(dot.dataset.idx, 10)); });
+      });
+    }
+
+    function goTo(idx) {
+      var count = slides.length;
+      current = ((idx % count) + count) % count;
+      if (track) track.style.transform = 'translateX(-' + (current * 100) + '%)';
+      if (dotsWrap) {
+        dotsWrap.querySelectorAll('.cd-dot').forEach(function (d, i) {
+          d.classList.toggle('is-active', i === current);
+          d.setAttribute('aria-selected', i === current);
+        });
+      }
+    }
+
+    if (prevBtn) prevBtn.addEventListener('click', function () { goTo(current - 1); });
+    if (nextBtn) nextBtn.addEventListener('click', function () { goTo(current + 1); });
+
+    // Touch/swipe support
+    var touchStartX = 0;
+    orderSliderEl.addEventListener('touchstart', function (e) {
+      touchStartX = e.changedTouches[0].clientX;
+    }, { passive: true });
+    orderSliderEl.addEventListener('touchend', function (e) {
+      var dx = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(dx) > 40) goTo(dx < 0 ? current + 1 : current - 1);
+    }, { passive: true });
+
+    buildDots();
+  }
+
+  // ── Reorder buttons ────────────────────────────────────
+  root.querySelectorAll('[data-cd-reorder]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var card    = btn.closest('.cd-order-card');
+      var jsonEl  = card && card.querySelector('.cd-order-json');
+      if (!jsonEl) return;
+
+      var data;
+      try { data = JSON.parse(jsonEl.textContent.trim()); }
+      catch (e) {
+        showToast('{{ section.settings.reorder_error_text | escape }}');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      var orig = btn.textContent;
+      btn.textContent = '{{ section.settings.reorder_adding_text | escape }}';
+
+      addToCart(data.items)
+        .then(function () {
+          return refreshCartCount();
+        })
+        .then(function () {
+          openCartDrawer();
+          showToast('{{ section.settings.reorder_success_text | escape }}');
+        })
+        .catch(function (err) {
+          showToast(err.message || '{{ section.settings.reorder_error_text | escape }}');
+        })
+        .finally(function () {
+          btn.disabled = false;
+          btn.removeAttribute('aria-busy');
+          btn.textContent = orig;
+        });
+    });
+  });
+
+  // ── Product Recommendations ────────────────────────────
+  var recsGrid   = document.getElementById('cd-recs-grid-{{ section.id }}');
+  var recsPager  = document.getElementById('cd-recs-pager-{{ section.id }}');
+
+  if (recsGrid && seedProduct) {
+    fetch('/recommendations/products.json?product_id=' + seedProduct + '&limit=' + recsLimit)
+      .then(function (r) { return r.json(); })
+      .then(function (resp) {
+        var products = resp.products || [];
+        if (!products.length) {
+          recsGrid.innerHTML = '<p class="cd-state-msg" style="grid-column:1/-1;">{{ section.settings.recs_empty_text | escape }}</p>';
+          return;
+        }
+
+        var currency = (window.Shopify && window.Shopify.currency && window.Shopify.currency.active) || 'USD';
+
+        function fmtPrice(cents) {
+          // Shopify product JSON prices are decimal strings e.g. "19.99"
+          var n = parseFloat(cents);
+          if (isNaN(n)) return '';
+          try {
+            return n.toLocaleString('en-US', { style: 'currency', currency: currency });
+          } catch (e) {
+            return currency + ' ' + n.toFixed(2);
+          }
+        }
+
+        function buildCard(p) {
+          var variant    = p.variants && p.variants[0];
+          var vid        = variant ? variant.id : null;
+          var price      = variant ? fmtPrice(variant.price) : '';
+          var compare    = (variant && variant.compare_at_price && parseFloat(variant.compare_at_price) > parseFloat(variant.price))
+                            ? fmtPrice(variant.compare_at_price) : '';
+          var img        = p.images && p.images[0];
+          var imgSrc     = img ? img.src.replace(/(\.[^.?]+)(\?|$)/, '_400x400$1$2') : '';
+          var imgAlt     = (img && img.alt) ? img.alt.replace(/"/g, '&quot;') : p.title.replace(/</g, '&lt;');
+          var safeTitle  = p.title.replace(/</g, '&lt;');
+          var safeUrl    = p.url || ('/products/' + p.handle);
+
+          return '<div class="cd-rec-card" data-cd-rec>' +
+            (imgSrc
+              ? '<a href="' + safeUrl + '" class="cd-rec-card__img-wrap" tabindex="-1" aria-hidden="true">' +
+                '<img class="cd-rec-card__img" src="' + imgSrc + '" alt="' + imgAlt + '" width="400" height="400" loading="lazy"></a>'
+              : '') +
+            '<div class="cd-rec-card__body">' +
+              '<a href="' + safeUrl + '" class="cd-rec-card__title">' + safeTitle + '</a>' +
+              (compare ? '<p class="cd-rec-card__compare">' + compare + '</p>' : '') +
+              (price  ? '<p class="cd-rec-card__price">' + price + '</p>' : '') +
+              (vid    ? '<button type="button" class="cd-btn cd-btn--atc cd-rec-card__atc" data-cd-atc="' + vid + '">' +
+                          '{{ section.settings.recs_add_to_cart_label | escape }}' +
+                        '</button>' : '') +
+            '</div>' +
+          '</div>';
+        }
+
+        recsGrid.innerHTML = products.map(buildCard).join('');
+
+        // Wire up Add-to-Cart on rec cards
+        recsGrid.querySelectorAll('[data-cd-atc]').forEach(function (atcBtn) {
+          atcBtn.addEventListener('click', function () {
+            var vid = parseInt(atcBtn.dataset.cdAtc, 10);
+            atcBtn.disabled = true;
+            atcBtn.setAttribute('aria-busy', 'true');
+            var orig = atcBtn.textContent;
+            atcBtn.textContent = '{{ section.settings.reorder_adding_text | escape }}';
+
+            addToCart([{ id: vid, quantity: 1 }])
+              .then(refreshCartCount)
+              .then(function () {
+                openCartDrawer();
+                showToast('{{ section.settings.reorder_success_text | escape }}');
+              })
+              .catch(function (err) {
+                showToast(err.message || '{{ section.settings.reorder_error_text | escape }}');
+              })
+              .finally(function () {
+                atcBtn.disabled = false;
+                atcBtn.removeAttribute('aria-busy');
+                atcBtn.textContent = orig;
+              });
+          });
+        });
+
+        // Page-by-page navigation for the recommendations grid
+        var cards        = Array.from(recsGrid.querySelectorAll('[data-cd-rec]'));
+        var perPage      = COLS;
+        var totalPages   = Math.ceil(cards.length / perPage);
+        var recPage      = 0;
+
+        function showRecPage(page) {
+          recPage = page;
+          cards.forEach(function (c, i) {
+            c.style.display = (i >= page * perPage && i < (page + 1) * perPage) ? '' : 'none';
+          });
+          if (recDotsWrap) {
+            recDotsWrap.querySelectorAll('.cd-dot').forEach(function (d, i) {
+              d.classList.toggle('is-active', i === page);
+              d.setAttribute('aria-selected', i === page);
+            });
+          }
+        }
+
+        if (totalPages > 1 && recsPager) {
+          var recPrevBtn  = recsPager.querySelector('[data-cd-recs-prev]');
+          var recNextBtn  = recsPager.querySelector('[data-cd-recs-next]');
+          var recDotsWrap = recsPager.querySelector('[data-cd-recs-dots]');
+
+          if (recDotsWrap) {
+            recDotsWrap.innerHTML = Array.from({ length: totalPages }, function (_, i) {
+              return '<button type="button" class="cd-dot' + (i === 0 ? ' is-active' : '') +
+                '" data-rp="' + i + '" role="tab" aria-selected="' + (i === 0) +
+                '" aria-label="Page ' + (i + 1) + '"></button>';
+            }).join('');
+            recDotsWrap.querySelectorAll('[data-rp]').forEach(function (d) {
+              d.addEventListener('click', function () { showRecPage(parseInt(d.dataset.rp, 10)); });
+            });
+          }
+
+          if (recPrevBtn) recPrevBtn.addEventListener('click', function () {
+            showRecPage(((recPage - 1) + totalPages) % totalPages);
+          });
+          if (recNextBtn) recNextBtn.addEventListener('click', function () {
+            showRecPage((recPage + 1) % totalPages);
+          });
+
+          recsPager.style.display = '';
+        }
+
+        showRecPage(0);
+      })
+      .catch(function () {
+        if (recsGrid) {
+          recsGrid.innerHTML = '<p class="cd-state-msg" style="grid-column:1/-1;">{{ section.settings.recs_empty_text | escape }}</p>';
+        }
+      });
+  } else if (recsGrid) {
+    recsGrid.innerHTML = '<p class="cd-state-msg" style="grid-column:1/-1;">{{ section.settings.recs_empty_text | escape }}</p>';
+  }
+
+  // Notify other scripts that the dashboard is ready
+  root.dispatchEvent(new CustomEvent('customer-dashboard:ready', {
+    bubbles: true,
+    detail: { sectionId: '{{ section.id }}', customerId: root.dataset.customerId }
+  }));
+
+})();
+</script>
+
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Customer Dashboard",
+  "tag": "section",
+  "class": "section-customer-dashboard",
+  "settings": [
+
+    {
+      "type": "header",
+      "content": "── General Layout ──"
+    },
+    {
+      "type": "range",
+      "id": "container_width",
+      "label": "Container max-width",
+      "min": 800,
+      "max": 1600,
+      "step": 40,
+      "unit": "px",
+      "default": 1200
+    },
+    {
+      "type": "range",
+      "id": "section_padding_y",
+      "label": "Section top & bottom padding",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 60
+    },
+    {
+      "type": "range",
+      "id": "block_gap",
+      "label": "Gap between blocks",
+      "min": 8,
+      "max": 60,
+      "step": 4,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "color",
+      "id": "section_bg",
+      "label": "Section background color",
+      "default": "#f4f4f4"
+    },
+    {
+      "type": "text",
+      "id": "date_format",
+      "label": "Date format string",
+      "default": "%b %d, %Y",
+      "info": "Liquid strftime format. Examples: %b %d, %Y → Jan 05, 2025 | %d/%m/%Y → 05/01/2025"
+    },
+    {
+      "type": "text",
+      "id": "cart_drawer_event",
+      "label": "Cart drawer custom event name",
+      "default": "cart:open",
+      "info": "JS CustomEvent dispatched to open the cart drawer. Common values: cart:open, CartDrawer:open, drawer:open:cart. The section also tries clicking common cart trigger selectors automatically."
+    },
+
+    {
+      "type": "header",
+      "content": "── Typography ──"
+    },
+    {
+      "type": "select",
+      "id": "heading_weight",
+      "label": "Heading font weight",
+      "options": [
+        { "value": "400", "label": "Regular (400)" },
+        { "value": "500", "label": "Medium (500)" },
+        { "value": "600", "label": "Semi-bold (600)" },
+        { "value": "700", "label": "Bold (700)" },
+        { "value": "800", "label": "Extra-bold (800)" }
+      ],
+      "default": "700"
+    },
+    {
+      "type": "range",
+      "id": "section_heading_size",
+      "label": "Block heading font size (Orders / Autoship / Recs)",
+      "min": 14,
+      "max": 36,
+      "step": 1,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "color",
+      "id": "section_heading_color",
+      "label": "Block heading color",
+      "default": "#1a1a1a"
+    },
+    {
+      "type": "text",
+      "id": "slider_prev_label",
+      "label": "Slider: previous button aria-label",
+      "default": "Previous"
+    },
+    {
+      "type": "text",
+      "id": "slider_next_label",
+      "label": "Slider: next button aria-label",
+      "default": "Next"
+    },
+    {
+      "type": "text",
+      "id": "aria_label",
+      "label": "Section aria-label (accessibility)",
+      "default": "Customer dashboard"
+    },
+
+    {
+      "type": "header",
+      "content": "── Welcome Block ──"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_welcome",
+      "label": "Show welcome block",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "welcome_prefix",
+      "label": "Text before customer name",
+      "default": "Welcome back, "
+    },
+    {
+      "type": "text",
+      "id": "welcome_suffix",
+      "label": "Text after customer name",
+      "default": "!"
+    },
+    {
+      "type": "textarea",
+      "id": "welcome_subtext",
+      "label": "Subtext below name",
+      "default": "Here's a look at your recent activity and upcoming shipments."
+    },
+    {
+      "type": "color",
+      "id": "welcome_bg",
+      "label": "Welcome block background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "welcome_text_color",
+      "label": "Heading text color",
+      "default": "#1a1a1a"
+    },
+    {
+      "type": "color",
+      "id": "welcome_sub_color",
+      "label": "Subtext color",
+      "default": "#666666"
+    },
+    {
+      "type": "range",
+      "id": "welcome_heading_size",
+      "label": "Heading font size",
+      "min": 18,
+      "max": 60,
+      "step": 1,
+      "unit": "px",
+      "default": 34
+    },
+    {
+      "type": "range",
+      "id": "welcome_sub_size",
+      "label": "Subtext font size",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "welcome_padding",
+      "label": "Block internal padding",
+      "min": 12,
+      "max": 64,
+      "step": 4,
+      "unit": "px",
+      "default": 28
+    },
+    {
+      "type": "range",
+      "id": "welcome_radius",
+      "label": "Border radius",
+      "min": 0,
+      "max": 40,
+      "step": 1,
+      "unit": "px",
+      "default": 12
+    },
+
+    {
+      "type": "header",
+      "content": "── Recent Orders ──"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_orders",
+      "label": "Show recent orders slider",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "orders_heading",
+      "label": "Block heading",
+      "default": "Your Recent Orders"
+    },
+    {
+      "type": "range",
+      "id": "orders_limit",
+      "label": "Max orders to show",
+      "min": 1,
+      "max": 10,
+      "step": 1,
+      "default": 5
+    },
+    {
+      "type": "color",
+      "id": "orders_section_bg",
+      "label": "Block background color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "orders_card_bg",
+      "label": "Order card background color",
+      "default": "#f8f8f8"
+    },
+    {
+      "type": "color",
+      "id": "orders_text_color",
+      "label": "Card primary text color",
+      "default": "#1a1a1a"
+    },
+    {
+      "type": "color",
+      "id": "orders_subtext_color",
+      "label": "Card secondary / meta text color",
+      "default": "#888888"
+    },
+    {
+      "type": "range",
+      "id": "orders_card_radius",
+      "label": "Card border radius",
+      "min": 0,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "default": 10
+    },
+    {
+      "type": "text",
+      "id": "view_order_label",
+      "label": "'View Order' button label",
+      "default": "View Order"
+    },
+    {
+      "type": "text",
+      "id": "no_orders_text",
+      "label": "Message when customer has no orders",
+      "default": "You haven't placed any orders yet."
+    },
+
+    {
+      "type": "header",
+      "content": "── Reorder Button ──"
+    },
+    {
+      "type": "text",
+      "id": "reorder_label",
+      "label": "Button label",
+      "default": "Reorder"
+    },
+    {
+      "type": "text",
+      "id": "reorder_adding_text",
+      "label": "Loading state label",
+      "default": "Adding…"
+    },
+    {
+      "type": "text",
+      "id": "reorder_success_text",
+      "label": "Success toast message",
+      "default": "Items added to your cart!"
+    },
+    {
+      "type": "text",
+      "id": "reorder_error_text",
+      "label": "Error toast message",
+      "default": "Something went wrong. Please try again."
+    },
+    {
+      "type": "color",
+      "id": "reorder_btn_bg",
+      "label": "Button background color",
+      "default": "#1a1a1a"
+    },
+    {
+      "type": "color",
+      "id": "reorder_btn_color",
+      "label": "Button text color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "reorder_btn_radius",
+      "label": "Button border radius",
+      "min": 0,
+      "max": 50,
+      "step": 1,
+      "unit": "px",
+      "default": 6
+    },
+
+    {
+      "type": "header",
+      "content": "── Next Autoship ──"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_autoship",
+      "label": "Show autoship card",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "autoship_heading",
+      "label": "Block heading",
+      "default": "Next Autoship"
+    },
+    {
+      "type": "text",
+      "id": "autoship_next_label",
+      "label": "Label above date",
+      "default": "Scheduled for"
+    },
+    {
+      "type": "text",
+      "id": "autoship_meta_namespace",
+      "label": "Metafield namespace",
+      "default": "recharge",
+      "info": "Customer metafield namespace used by your subscription app. Recharge default: recharge"
+    },
+    {
+      "type": "text",
+      "id": "autoship_meta_key",
+      "label": "Metafield key",
+      "default": "next_charge_scheduled_at",
+      "info": "Customer metafield key for the next order date. The section reads customer.metafields[namespace][key] and formats it with your date format string."
+    },
+    {
+      "type": "text",
+      "id": "autoship_date_fallback",
+      "label": "Fallback text when no metafield is found",
+      "default": "No upcoming shipment"
+    },
+    {
+      "type": "textarea",
+      "id": "autoship_subtext",
+      "label": "Additional subtext (optional)",
+      "default": ""
+    },
+    {
+      "type": "url",
+      "id": "autoship_manage_url",
+      "label": "Manage subscriptions URL",
+      "info": "Link to your subscription management portal (e.g. Recharge customer portal)."
+    },
+    {
+      "type": "text",
+      "id": "autoship_manage_label",
+      "label": "'Manage' button label",
+      "default": "Manage Subscriptions"
+    },
+    {
+      "type": "color",
+      "id": "autoship_bg",
+      "label": "Card background color",
+      "default": "#111111"
+    },
+    {
+      "type": "color",
+      "id": "autoship_text_color",
+      "label": "Text color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "autoship_accent_color",
+      "label": "Accent color (label, button background)",
+      "default": "#4ade80"
+    },
+    {
+      "type": "range",
+      "id": "autoship_radius",
+      "label": "Border radius",
+      "min": 0,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "default": 12
+    },
+
+    {
+      "type": "header",
+      "content": "── Product Recommendations ──"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_recs",
+      "label": "Show recommendations slider",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "recs_heading",
+      "label": "Block heading",
+      "default": "Recommended For You"
+    },
+    {
+      "type": "range",
+      "id": "recs_limit",
+      "label": "Max products to fetch",
+      "min": 3,
+      "max": 12,
+      "step": 1,
+      "default": 6,
+      "info": "Shopify returns up to 10 recommendations. Products are paged by the columns setting below."
+    },
+    {
+      "type": "range",
+      "id": "recs_columns",
+      "label": "Products per page (desktop columns)",
+      "min": 2,
+      "max": 4,
+      "step": 1,
+      "default": 3
+    },
+    {
+      "type": "text",
+      "id": "recs_loading_text",
+      "label": "Loading state text",
+      "default": "Loading recommendations…"
+    },
+    {
+      "type": "text",
+      "id": "recs_empty_text",
+      "label": "No recommendations text",
+      "default": "Explore our latest products."
+    },
+    {
+      "type": "text",
+      "id": "recs_add_to_cart_label",
+      "label": "'Add to Cart' button label",
+      "default": "Add to Cart"
+    },
+    {
+      "type": "color",
+      "id": "recs_section_bg",
+      "label": "Block background color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "recs_card_bg",
+      "label": "Product card background color",
+      "default": "#f8f8f8"
+    },
+    {
+      "type": "color",
+      "id": "recs_text_color",
+      "label": "Product card text color",
+      "default": "#1a1a1a"
+    },
+    {
+      "type": "color",
+      "id": "recs_btn_bg",
+      "label": "Add to Cart button background",
+      "default": "#1a1a1a"
+    },
+    {
+      "type": "color",
+      "id": "recs_btn_color",
+      "label": "Add to Cart button text color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "recs_card_radius",
+      "label": "Product card border radius",
+      "min": 0,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "default": 10
+    },
+
+    {
+      "type": "header",
+      "content": "── Guest / Logged-Out State ──"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_logged_out",
+      "label": "Show section to logged-out visitors",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "guest_heading",
+      "label": "Heading",
+      "default": "Welcome!"
+    },
+    {
+      "type": "textarea",
+      "id": "guest_subtext",
+      "label": "Subtext",
+      "default": "Log in to see your personalized dashboard, reorder past purchases, and manage your subscriptions."
+    },
+    {
+      "type": "text",
+      "id": "guest_login_label",
+      "label": "Log In button label",
+      "default": "Log In"
+    },
+    {
+      "type": "text",
+      "id": "guest_register_label",
+      "label": "Create Account button label",
+      "default": "Create Account"
+    }
+
+  ],
+  "presets": [
+    {
+      "name": "Customer Dashboard"
+    }
+  ]
+}
+{% endschema %}
