@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recoup: Texas Sales Tax Recovery</title>
+<meta name="description" content="Recoup reads your accounts payable line by line, finds the Texas sales and use tax you overpaid, and drafts the refund packet for a licensed preparer to sign.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a green-bar ledger sheet. The hero is the product itself, a real AP ledger being reviewed line by line. Everything else stays quiet and typographic. */
+:root {
+  --paper: #F2F5F1;
+  --surface: #FFFFFF;
+  --ink: #0F1E1A;
+  --muted: #56675F;
+  --rule: #D7E2DA;
+  --bar: #E8F0EA;
+  --accent: #0D6A4E;
+  --accent-ink: #FFFFFF;
+  --owed: #A24F0C;
+  --review: #2C5A86;
+  --expired: #7D8783;
+  --display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+  --body: "Public Sans", "Segoe UI", Roboto, Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --wrap: 1180px;
+  --radius: 10px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0B1311; --surface: #111C19; --ink: #E4EDE8; --muted: #93A69E;
+    --rule: #22332D; --bar: #15231F; --accent: #4CC097; --accent-ink: #06130F;
+    --owed: #E59A56; --review: #84B3E2; --expired: #7F8B87;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0B1311; --surface: #111C19; --ink: #E4EDE8; --muted: #93A69E;
+  --rule: #22332D; --bar: #15231F; --accent: #4CC097; --accent-ink: #06130F;
+  --owed: #E59A56; --review: #84B3E2; --expired: #7F8B87;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 400 17px/1.6 var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+img, svg { max-width: 100%; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.05; margin: 0; text-wrap: balance; letter-spacing: -0.02em; }
+p { margin: 0; }
+.wrap { width: min(var(--wrap), 100% - 40px); margin-inline: auto; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.eyebrow {
+  font: 500 13px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent);
+}
+.lede { font-size: 19px; color: var(--muted); max-width: 60ch; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 52px; padding: 0 24px; border-radius: 999px; border: 1.5px solid transparent;
+  font: 600 16px/1 var(--body); text-decoration: none; cursor: pointer;
+  transition: transform .15s ease, background-color .15s ease, border-color .15s ease;
+}
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { transform: translateY(-1px); }
+.btn-ghost { background: transparent; color: var(--ink); border-color: var(--rule); }
+.btn-ghost:hover { border-color: var(--ink); }
+.btn .arrow { font-family: var(--mono); }
+
+/* Nav */
+.nav { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--rule); }
+.nav .wrap { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 68px; }
+.brand { display: flex; align-items: center; gap: 10px; font: 800 22px/1 var(--display); letter-spacing: -0.03em; text-decoration: none; }
+.brand-mark { width: 28px; height: 28px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; }
+.brand-mark svg { width: 16px; height: 16px; }
+.nav-links { display: flex; gap: 28px; font-size: 15px; color: var(--muted); }
+.nav-links a { text-decoration: none; padding: 8px 0; }
+.nav-links a:hover { color: var(--ink); }
+.nav .btn { min-height: 44px; padding: 0 18px; font-size: 15px; }
+
+/* Hero */
+.hero { padding: 64px 0 72px; }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.25fr); gap: 48px; align-items: center; }
+.hero h1 { font-size: clamp(40px, 5.2vw, 66px); font-weight: 800; margin: 18px 0 22px; }
+.hero h1 .strike { position: relative; color: var(--accent); white-space: nowrap; }
+.hero .lede { margin-bottom: 32px; }
+.cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.assure { margin-top: 22px; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--muted); max-width: 52ch; }
+.assure svg { flex: none; width: 18px; height: 18px; margin-top: 2px; color: var(--accent); }
+
+/* Ledger card */
+.ledger { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; box-shadow: 0 1px 0 var(--rule), 0 24px 60px -30px rgba(15, 30, 26, .35); overflow: hidden; position: relative; }
+.ledger-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--rule); }
+.ledger-title { font: 500 12px/1.3 var(--mono); color: var(--muted); letter-spacing: .04em; }
+.ledger-title b { color: var(--ink); font-weight: 600; }
+.replay { min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); font: 500 13px/1 var(--mono); cursor: pointer; }
+.replay:hover { border-color: var(--ink); }
+.ledger-scroll { overflow-x: auto; }
+.ledger table { width: 100%; border-collapse: collapse; min-width: 520px; }
+.ledger th { text-align: left; font: 500 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 10px 14px; border-bottom: 1px solid var(--rule); }
+.ledger th.r, .ledger td.r { text-align: right; }
+.ledger td { padding: 10px 14px; font-size: 14px; vertical-align: middle; border-bottom: 1px solid var(--rule); }
+.ledger tbody tr:nth-child(odd) { background: var(--bar); }
+.ledger tbody tr:last-child td { border-bottom: 0; }
+.ledger .desc { font-weight: 500; line-height: 1.3; }
+.ledger .vendor { font-size: 12px; color: var(--muted); }
+.ledger tr.scan { box-shadow: inset 3px 0 0 var(--accent); }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 999px; font: 600 11px/1 var(--mono); letter-spacing: .04em; white-space: nowrap; border: 1px solid currentColor; }
+.chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.chip.refund { color: var(--accent); }
+.chip.owed { color: var(--owed); }
+.chip.review { color: var(--review); }
+.chip.expired { color: var(--expired); }
+.chip.pending { color: var(--muted); border-style: dashed; }
+.chip.pending::before { display: none; }
+.amt { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.amt.refund { color: var(--accent); }
+.amt.owed { color: var(--owed); }
+.amt.muted { color: var(--muted); font-weight: 400; }
+.ledger-foot { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--rule); }
+.tally { padding: 14px 18px; }
+.tally + .tally { border-left: 1px solid var(--rule); }
+.tally .k { font: 500 11px/1.2 var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.tally .v { font: 600 22px/1.2 var(--mono); font-variant-numeric: tabular-nums; margin-top: 4px; }
+.tally.refund .v { color: var(--accent); }
+.tally.owed .v { color: var(--owed); }
+.stamp {
+  flex: none; transform: rotate(-6deg);
+  font: 700 13px/1 var(--mono); letter-spacing: .14em; color: var(--owed);
+  border: 2px solid currentColor; border-radius: 6px; padding: 7px 10px; opacity: .75; pointer-events: none;
+}
+.ledger-note { display: flex; justify-content: space-between; align-items: center; gap: 16px; font: 400 12px/1.4 var(--mono); color: var(--muted); padding: 12px 18px 14px; border-top: 1px solid var(--rule); }
+
+/* Sections */
+section.band { padding: 96px 0; border-top: 1px solid var(--rule); }
+.section-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 48px; align-items: end; margin-bottom: 56px; }
+.section-head h2 { font-size: clamp(32px, 4.2vw, 52px); font-weight: 700; margin-top: 14px; }
+
+/* Problem */
+.problems { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-top: 2px solid var(--ink); }
+.problem { padding: 28px 28px 8px 0; }
+.problem + .problem { padding-left: 28px; border-left: 1px solid var(--rule); }
+.problem .big { font: 600 40px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.problem h3 { font-size: 22px; font-weight: 700; margin: 18px 0 10px; }
+.problem p { color: var(--muted); font-size: 16px; }
+
+/* How it works */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; counter-reset: step; }
+.step { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: 26px 24px 28px; counter-increment: step; }
+.step::before { content: counter(step, decimal-leading-zero); display: block; font: 500 13px/1 var(--mono); color: var(--accent); margin-bottom: 36px; }
+.step h3 { font-size: 21px; font-weight: 700; margin-bottom: 10px; }
+.step p { font-size: 15px; color: var(--muted); }
+
+/* Two numbers */
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: center; }
+.two h2 { font-size: clamp(32px, 4.2vw, 52px); font-weight: 700; margin: 14px 0 20px; }
+.two .lede + .lede { margin-top: 16px; }
+.balance { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 28px; }
+.bal-row { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: baseline; padding: 16px 0; border-bottom: 1px solid var(--rule); }
+.bal-row:first-child { padding-top: 0; }
+.bal-row .k { font-size: 15px; }
+.bal-row .k small { display: block; color: var(--muted); font-size: 13px; }
+.bal-row .v { font: 600 26px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.bal-row.net { border-bottom: 0; padding-bottom: 0; }
+.bal-row.net .v { font-size: 34px; }
+.meter { height: 10px; border-radius: 999px; background: var(--bar); margin: 22px 0 10px; position: relative; overflow: hidden; border: 1px solid var(--rule); }
+.meter .fill { position: absolute; inset: 0 auto 0 0; background: var(--owed); border-radius: 999px; }
+.meter .line { position: absolute; top: -1px; bottom: -1px; width: 2px; background: var(--ink); }
+.meter-cap { display: flex; justify-content: space-between; font: 400 12px/1.4 var(--mono); color: var(--muted); }
+
+/* What we check */
+.checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 56px; }
+.check { display: grid; grid-template-columns: 1fr auto; gap: 6px 20px; padding: 20px 0; border-bottom: 1px solid var(--rule); }
+.check h3 { font: 600 18px/1.3 var(--body); letter-spacing: 0; }
+.check .cite { font: 400 12px/1.4 var(--mono); color: var(--muted); text-align: right; }
+.check p { grid-column: 1 / -1; font-size: 15px; color: var(--muted); }
+.check-flag { color: var(--review); }
+
+/* Proof */
+.proof { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 56px; }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; }
+.stat { background: var(--surface); padding: 26px 24px; }
+.stat .v { font: 600 32px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.stat .k { margin-top: 10px; font-size: 14px; color: var(--muted); }
+.packet { list-style: none; margin: 24px 0 0; padding: 0; }
+.packet li { display: grid; grid-template-columns: 22px 1fr; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--rule); font-size: 16px; }
+.packet li:last-child { border-bottom: 0; }
+.packet svg { width: 18px; height: 18px; margin-top: 3px; color: var(--accent); }
+.packet small { display: block; color: var(--muted); font-size: 14px; }
+
+/* Offer */
+.offer { background: var(--ink); color: var(--paper); border-radius: 18px; padding: 56px; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 48px; align-items: center; }
+.offer h2 { font-size: clamp(30px, 3.8vw, 46px); font-weight: 700; }
+.offer p { color: color-mix(in srgb, var(--paper) 75%, transparent); margin-top: 16px; font-size: 17px; }
+.offer-terms { display: grid; gap: 14px; }
+.term { display: grid; grid-template-columns: 110px 1fr; gap: 16px; padding-bottom: 14px; border-bottom: 1px solid color-mix(in srgb, var(--paper) 20%, transparent); }
+.term:last-child { border-bottom: 0; }
+.term .k { font: 500 12px/1.5 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: color-mix(in srgb, var(--paper) 60%, transparent); }
+.term .v { font-size: 16px; }
+
+/* FAQ */
+.faq { max-width: 820px; }
+.faq details { border-bottom: 1px solid var(--rule); }
+.faq summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; gap: 20px; align-items: center; padding: 22px 0; min-height: 56px; font: 600 19px/1.35 var(--body); }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; font: 400 24px/1 var(--mono); color: var(--accent); flex: none; transition: transform .2s ease; }
+.faq details[open] summary::after { transform: rotate(45deg); }
+.faq .ans { padding: 0 0 24px; color: var(--muted); max-width: 66ch; }
+.faq .ans p + p { margin-top: 12px; }
+
+/* Final CTA */
+.final { padding: 104px 0; border-top: 1px solid var(--rule); }
+.final .wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: start; }
+.final h2 { font-size: clamp(36px, 5vw, 62px); font-weight: 800; margin-top: 14px; }
+.final .lede { margin-top: 20px; }
+form.intake { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 28px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; }
+.field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.field input { width: 100%; min-width: 0; }
+.field label { font-size: 14px; font-weight: 600; }
+.field input { min-height: 50px; padding: 0 14px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); color: var(--ink); font: 400 16px var(--body); }
+.field input[type="file"] { padding: 12px 14px; min-height: 0; }
+.field input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+.field .hint { font-size: 13px; color: var(--muted); }
+form.intake .btn { width: 100%; margin-top: 4px; }
+.form-msg { font-size: 14px; min-height: 1.4em; }
+.form-msg.ok { color: var(--accent); }
+.form-msg.err { color: var(--owed); }
+
+/* Footer */
+footer { border-top: 1px solid var(--rule); padding: 40px 0 56px; color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 20px; }
+footer p { max-width: 70ch; }
+
+/* Mobile CTA bar */
+.mobile-cta { display: none; }
+
+@media (max-width: 1000px) {
+  .hero .wrap, .two, .proof, .offer, .final .wrap, .section-head { grid-template-columns: minmax(0, 1fr); gap: 36px; }
+  .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .nav-links { display: none; }
+  .offer { padding: 40px 32px; }
+}
+@media (max-width: 720px) {
+  body { font-size: 16px; padding-bottom: 84px; }
+  .wrap { width: min(var(--wrap), 100% - 32px); }
+  .hero { padding: 36px 0 56px; }
+  .hero h1 { margin: 14px 0 16px; }
+  .lede { font-size: 17px; }
+  .cta-row .btn { flex: 1 1 100%; }
+  section.band { padding: 64px 0; }
+  .section-head { margin-bottom: 32px; }
+  .problems { grid-template-columns: minmax(0, 1fr); }
+  .problem, .problem + .problem { padding: 24px 0; border-left: 0; }
+  .problem + .problem { border-top: 1px solid var(--rule); }
+  .steps, .checks { grid-template-columns: minmax(0, 1fr); }
+  .step::before { margin-bottom: 18px; }
+  .check .cite { text-align: left; grid-column: 1 / -1; }
+  .stats { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .stat { padding: 20px 16px; }
+  .stat .v { font-size: 24px; }
+  .offer { padding: 32px 22px; border-radius: 14px; }
+  .term { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .final { padding: 64px 0; }
+  .nav .btn { display: none; }
+  .ledger-foot { grid-template-columns: minmax(0, 1fr); }
+  .tally + .tally { border-left: 0; border-top: 1px solid var(--rule); }
+  .tally { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 16px; }
+  .tally .v { font-size: 18px; margin: 0; }
+  .mobile-cta {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--paper) 94%, transparent); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--rule);
+  }
+  .mobile-cta .btn { width: 100%; min-height: 54px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Recoup home">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 16 16" fill="none" stroke="var(--accent-ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 6.5 13 13 4"/></svg>
+      </span>
+      Recoup
+    </a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#exposure">Both numbers</a>
+      <a href="#checks">What we check</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-primary" href="#start">Get a free review</a>
+  </div>
+</header>
+
+<main id="top">
+
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <p class="eyebrow">Texas sales &amp; use tax recovery</p>
+      <h1>Your AP ledger is holding tax you <span class="strike">never owed.</span></h1>
+      <p class="lede">Recoup reads every invoice line you paid in the last four years, finds the sales tax your vendors charged on exempt purchases, and drafts the refund packet. It also shows you the use tax you missed, before the Comptroller finds it.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#start">Get my free review <span class="arrow" aria-hidden="true">&rarr;</span></a>
+        <a class="btn btn-ghost" href="#proof">See a sample packet</a>
+      </div>
+      <p class="assure">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2 3.5 4.5v5c0 4 2.8 7 6.5 8.5 3.7-1.5 6.5-4.5 6.5-8.5v-5L10 2Z"/><path d="m7 10 2 2 4-4"/></svg>
+        A licensed tax professional checks every line before anything goes to a vendor or the state. Nothing gets filed without a signature.
+      </p>
+    </div>
+
+    <figure class="ledger" aria-label="Sample review of an accounts payable ledger" style="margin:0">
+      <div class="ledger-head">
+        <span class="ledger-title"><b>ap_export.csv</b> &middot; 8 of 21 lines &middot; sample machine shop</span>
+        <button class="replay" id="replay" type="button">&#8635; Replay review</button>
+      </div>
+      <div class="ledger-scroll">
+        <table>
+          <thead>
+            <tr><th>Line</th><th class="r">Tax paid</th><th>Finding</th><th class="r">Amount</th></tr>
+          </thead>
+          <tbody id="ledger-body"></tbody>
+        </table>
+      </div>
+      <div class="ledger-foot">
+        <div class="tally refund"><div class="k">Refund, gates passed</div><div class="v" id="t-refund">$12,295.80</div></div>
+        <div class="tally owed"><div class="k">Use tax owed</div><div class="v" id="t-owed">$2,899.05</div></div>
+        <div class="tally"><div class="k">To a human</div><div class="v" id="t-review">5 lines</div></div>
+      </div>
+      <figcaption class="ledger-note"><span>Totals cover all 21 lines of the sample ledger, a fictional Texas machine shop.</span><span class="stamp" aria-hidden="true">DRAFT &middot; NOT FILED</span></figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="band" id="problem">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">The problem</p>
+        <h2>Vendors charge tax by default. Exemptions live on the line.</h2>
+      </div>
+      <p class="lede">Texas exempts a long list of what manufacturers buy, but the exemption depends on how you use each item, and your vendor has no idea. So they charge 8.25% and move on. Your AP team pays the invoice. Nobody goes back.</p>
+    </div>
+    <div class="problems">
+      <div class="problem">
+        <div class="big num">8.25%</div>
+        <h3>Charged on things you use to make product</h3>
+        <p>Machining centers, bar stock, carbide inserts, shielding gas, shipping cartons. If it goes into the product or gets consumed making it, the tax on it is often refundable.</p>
+      </div>
+      <div class="problem">
+        <div class="big num">2&times;</div>
+        <h3>Sometimes paid twice</h3>
+        <p>When a vendor charges sales tax and your team also self-accrues use tax on the same invoice, you pay the state twice. In the sample, an argon refill did exactly that.</p>
+      </div>
+      <div class="problem">
+        <div class="big num">4 yrs</div>
+        <h3>And the window keeps closing</h3>
+        <p>Texas allows refund claims for four years. Every month, another month of invoices ages out. The sample shop lost a $7,920 refund on a CNC lathe to the clock.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="how">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">How it works</p>
+        <h2>Software does the reading. A licensed preparer signs.</h2>
+      </div>
+      <p class="lede">Reverse audits used to mean weeks of a consultant paging through invoices. Recoup reviews the whole ledger in one pass and hands a person only the lines that need judgment.</p>
+    </div>
+    <ol class="steps">
+      <li class="step">
+        <h3>Send your AP export</h3>
+        <p>A CSV from your accounting system with vendor, invoice, description, amount, tax and GL account. Column names don't need to match ours.</p>
+      </li>
+      <li class="step">
+        <h3>Two reviewers, independently</h3>
+        <p>One classifies each purchase. A second, skeptical reviewer classifies it again without seeing the first answer. If they disagree, a person decides.</p>
+      </li>
+      <li class="step">
+        <h3>Rules compute every dollar</h3>
+        <p>AI never does tax math. Deterministic code applies Texas rules, statute citations included, to each classified line.</p>
+      </li>
+      <li class="step">
+        <h3>You get a signed-off packet</h3>
+        <p>Vendor refund letters, a state claim schedule, and a short list of documents we need from you. A licensed preparer approves before anything leaves.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="band" id="exposure">
+  <div class="wrap two">
+    <div>
+      <p class="eyebrow">Why Recoup is different</p>
+      <h2>We show you both numbers.</h2>
+      <p class="lede">A refund claim invites the Comptroller to look at the same period. If you also under-accrued use tax on a forklift or a laptop, they will find it.</p>
+      <p class="lede">A review that reports only refunds leaves you exposed. Recoup finds what you're owed and what you owe, nets them, and blocks the packet if the exposure tops 25% of the refund until you decide how to handle it.</p>
+    </div>
+    <div class="balance" aria-label="Sample position">
+      <div class="bal-row">
+        <div class="k">Refunds that passed every gate<small>11 lines across 7 vendors</small></div>
+        <div class="v" style="color:var(--accent)">$12,295.80</div>
+      </div>
+      <div class="bal-row">
+        <div class="k">Likely use tax owed<small>Forklift, hand tools, a laptop</small></div>
+        <div class="v" style="color:var(--owed)">&minus;$2,899.05</div>
+      </div>
+      <div class="bal-row net">
+        <div class="k">Net position<small>Sample machine shop</small></div>
+        <div class="v">$9,396.75</div>
+      </div>
+      <div class="meter" role="img" aria-label="Exposure is 23.6 percent of refunds, under the 25 percent block line">
+        <div class="fill" style="width:23.6%"></div>
+        <div class="line" style="left:25%"></div>
+      </div>
+      <div class="meter-cap"><span>Exposure 23.6% of refunds</span><span>Block line 25%</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="checks">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">What we check</p>
+        <h2>Every category where Texas manufacturers overpay.</h2>
+      </div>
+      <p class="lede">Each finding carries its citation so your preparer can verify it in minutes instead of researching it from scratch.</p>
+    </div>
+    <div class="checks">
+      <div class="check"><h3>Manufacturing equipment</h3><span class="cite">Tax Code &sect;151.318</span><p>Machinery used directly in making product for sale.</p></div>
+      <div class="check"><h3>Raw materials and components</h3><span class="cite">Tax Code &sect;151.318</span><p>Bar stock, plate and anything that becomes part of what you sell.</p></div>
+      <div class="check"><h3>Consumables</h3><span class="cite">34 TAC &sect;3.300</span><p>Inserts, end mills, cutting fluid and gases used up in production.</p></div>
+      <div class="check"><h3>Packaging</h3><span class="cite">Tax Code &sect;151.318</span><p>Cartons and materials that ship with the product to your customer.</p></div>
+      <div class="check"><h3>Freight on exempt items</h3><span class="cite">Separately stated delivery</span><p>Delivery and rigging charges taxed along with exempt equipment.</p></div>
+      <div class="check"><h3>Software and data processing</h3><span class="cite">Tax Code &sect;151.351</span><p>20% of data processing is exempt. An invoice that taxes the full amount overcharges you.</p></div>
+      <div class="check"><h3>Professional services</h3><span class="cite">Nontaxable service</span><p>Legal and similar services that should never carry tax.</p></div>
+      <div class="check"><h3 class="check-flag">Utilities and repair parts</h3><span class="cite">Flagged for review</span><p>Refundable with a predominant-use study or a useful-life check. We tell you exactly which document unlocks each one.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="proof">
+  <div class="wrap proof">
+    <div>
+      <p class="eyebrow">Sample run</p>
+      <h2 style="font-size:clamp(32px,4.2vw,52px);font-weight:700;margin:14px 0 20px">21 invoice lines. One pass.</h2>
+      <p class="lede">We ran Recoup on the AP export of a fictional Texas machine shop: a Haas machining center, steel and aluminum stock, tooling, utilities, software and office spend. This is what came back.</p>
+      <ul class="packet">
+        <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2.5h7l3.5 3.5v11.5H5z"/><path d="M12 2.5V6h3.5"/></svg><span>Seven vendor refund letters<small>One per vendor, with each invoice line and the exemption that applies</small></span></li>
+        <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h14M3 8h14M3 12h14M3 16h9"/></svg><span>State claim schedule<small>Lines to file with the Comptroller on a Claim for Refund, Form 00-957</small></span></li>
+        <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v8M10 14.5v.5"/><circle cx="10" cy="10" r="8"/></svg><span>Exposure schedule<small>Three purchases where use tax was likely owed and not accrued</small></span></li>
+        <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="7" r="3.5"/><path d="M3.5 17.5c1-3.3 3.4-5 6.5-5s5.5 1.7 6.5 5"/></svg><span>Review queue<small>Five lines for a person, each naming the study, certificate or invoice that settles it</small></span></li>
+      </ul>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="v" style="color:var(--accent)">$12,295.80</div><div class="k">Refunds that passed every gate</div></div>
+      <div class="stat"><div class="v" style="color:var(--owed)">$2,899.05</div><div class="k">Use tax owed, disclosed up front</div></div>
+      <div class="stat"><div class="v">$6,930.00</div><div class="k">Largest single refund: tax on a CNC machining center</div></div>
+      <div class="stat"><div class="v">$7,920.00</div><div class="k">Refund lost because the invoice was more than four years old</div></div>
+      <div class="stat"><div class="v">13 of 21</div><div class="k">Lines overpaid</div></div>
+      <div class="stat"><div class="v">5</div><div class="k">Lines sent to a human instead of guessed</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="offer">
+  <div class="wrap">
+    <div class="offer">
+      <div>
+        <p class="eyebrow" style="color:var(--accent)">The offer</p>
+        <h2 style="margin-top:14px">See your number before you spend a dollar.</h2>
+        <p>Send the export. You get your refund estimate, your exposure and the review list. If the math isn't worth filing, you walk away knowing your books are clean.</p>
+      </div>
+      <div class="offer-terms">
+        <div class="term"><span class="k">Review</span><span class="v">Free. Four years of AP, every line.</span></div>
+        <div class="term"><span class="k">Fee</span><span class="v">A share of what vendors and the state actually return. No refund, no fee.</span></div>
+        <div class="term"><span class="k">Your time</span><span class="v">One CSV export, plus any documents the review list asks for.</span></div>
+        <div class="term"><span class="k">Control</span><span class="v">Nothing goes out without your approval and a licensed preparer's signature.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="faq">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">Questions</p>
+        <h2>What controllers ask first.</h2>
+      </div>
+    </div>
+    <div class="faq">
+      <details>
+        <summary>Will filing a refund claim trigger an audit?</summary>
+        <div class="ans"><p>It can open the period to a closer look. That's why Recoup reports your use tax exposure next to the refund and blocks the packet when exposure runs above 25% of the refund. You decide how to handle it with full information.</p></div>
+      </details>
+      <details>
+        <summary>Who files the claim?</summary>
+        <div class="ans"><p>A licensed tax professional reviews every line, approves the packet and files it. Recoup drafts. It never files, submits or emails anything on its own.</p></div>
+      </details>
+      <details>
+        <summary>What do you need from us?</summary>
+        <div class="ans"><p>One CSV export of your accounts payable detail with vendor, invoice number, date, description, amount, sales tax, use tax and GL account. After the review, you get a short list of anything else that would unlock more refunds, like a utility study or an exemption certificate.</p></div>
+      </details>
+      <details>
+        <summary>How far back can we go?</summary>
+        <div class="ans"><p>Texas allows four years. Recoup flags anything older as expired so nobody spends time on it, and it shows you what aged out so you can see the cost of waiting.</p></div>
+      </details>
+      <details>
+        <summary>How is AI involved, and how do you keep it honest?</summary>
+        <div class="ans"><p>AI reads descriptions and sorts each purchase into a fixed list of categories. It never computes tax. Two reviewers classify each line independently, and any disagreement goes to a person. Plain code applies Texas rules to compute every dollar.</p><p>When a line is unclear, Recoup marks it unknown instead of guessing.</p></div>
+      </details>
+      <details>
+        <summary>Which states do you cover?</summary>
+        <div class="ans"><p>Texas today. If you buy into other states, tell us which ones when you send your export.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section class="final" id="start">
+  <div class="wrap">
+    <div>
+      <p class="eyebrow">Start here</p>
+      <h2>Find out what your ledger owes you.</h2>
+      <p class="lede">Every month you wait, another month of invoices passes the four-year line. Send your AP export and see both numbers.</p>
+    </div>
+    <form class="intake" id="intake" data-endpoint="" novalidate>
+      <div class="field">
+        <label for="f-name">Your name</label>
+        <input id="f-name" name="name" type="text" autocomplete="name" required>
+      </div>
+      <div class="field">
+        <label for="f-email">Work email</label>
+        <input id="f-email" name="email" type="email" autocomplete="email" inputmode="email" required>
+      </div>
+      <div class="field">
+        <label for="f-company">Company</label>
+        <input id="f-company" name="company" type="text" autocomplete="organization" required>
+      </div>
+      <div class="field">
+        <label for="f-file">AP export (optional)</label>
+        <input id="f-file" name="ledger" type="file" accept=".csv,text/csv">
+        <span class="hint">CSV of AP line detail. You can also send it after we talk.</span>
+      </div>
+      <button class="btn btn-primary" type="submit">Get my free review <span class="arrow" aria-hidden="true">&rarr;</span></button>
+      <p class="form-msg" id="form-msg" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <strong style="color:var(--ink);font-family:var(--display);font-size:18px">Recoup</strong>
+    <p>Recoup prepares draft refund packets. A licensed tax professional verifies every line, citation and form before anything is sent or filed. Sample figures come from a fictional company.</p>
+  </div>
+</footer>
+
+<div class="mobile-cta"><a class="btn btn-primary" href="#start">Get my free review <span class="arrow" aria-hidden="true">&rarr;</span></a></div>
+
+<script>
+(function () {
+  var LINES = [
+    { d: "CNC vertical machining center VF-4", v: "Haas Automation Dealer", tax: 6930.00, f: "refund", label: "Exempt equipment", amt: 6930.00 },
+    { d: "Freight and rigging delivery", v: "Haas Automation Dealer", tax: 198.00, f: "refund", label: "Exempt freight", amt: 198.00 },
+    { d: "4140 steel bar stock, 2in round", v: "Gulf Coast Steel Supply", tax: 1505.62, f: "refund", label: "Component", amt: 1505.62 },
+    { d: "Argon shielding gas refill", v: "Airgas Southwest", tax: 306.90, f: "refund", label: "Taxed twice", amt: 306.90 },
+    { d: "ERP SaaS subscription, annual", v: "CloudLedger Inc", tax: 2970.00, f: "refund", label: "20% exempt", amt: 594.00 },
+    { d: "Electric forklift, 5000 lb", v: "Toyota Material Handling", tax: 0, f: "owed", label: "Use tax due", amt: -2640.00 },
+    { d: "Electricity, plant 1", v: "Oncor / TXU Energy", tax: 1765.50, f: "review", label: "Needs study", amt: null },
+    { d: "CNC lathe LB3000", v: "Okuma Dealer Texas", tax: 7920.00, f: "expired", label: "Past 4 years", amt: null }
+  ];
+  var fmt = function (n) {
+    var s = Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return (n < 0 ? "−$" : "$") + s;
+  };
+  var body = document.getElementById("ledger-body");
+
+  function render(revealed) {
+    body.innerHTML = LINES.map(function (l, i) {
+      var shown = i < revealed;
+      var chip = shown ? '<span class="chip ' + l.f + '">' + l.label + '</span>' : '<span class="chip pending">Reviewing</span>';
+      var amtCls = l.f === "refund" ? "refund" : l.f === "owed" ? "owed" : "muted";
+      var amt = !shown ? '<span class="amt muted">&middot;&middot;&middot;</span>'
+        : l.amt === null ? '<span class="amt muted">' + (l.f === "expired" ? "lost" : "held") + '</span>'
+        : '<span class="amt ' + amtCls + '">' + (l.amt > 0 ? "+" : "") + fmt(l.amt) + '</span>';
+      return '<tr' + (i === revealed - 1 && revealed < LINES.length ? ' class="scan"' : '') + '>' +
+        '<td><div class="desc">' + l.d + '</div><div class="vendor">' + l.v + '</div></td>' +
+        '<td class="r"><span class="amt muted">' + fmt(l.tax) + '</span></td>' +
+        '<td>' + chip + '</td>' +
+        '<td class="r">' + amt + '</td></tr>';
+    }).join("");
+  }
+  render(LINES.length);
+
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var timer = null;
+  var tallies = ["t-refund", "t-owed", "t-review"].map(function (id) { return document.getElementById(id); });
+  var finals = tallies.map(function (el) { return el.textContent; });
+
+  document.getElementById("replay").addEventListener("click", function () {
+    if (timer) clearInterval(timer);
+    if (reduce) { render(LINES.length); return; }
+    var n = 0;
+    tallies.forEach(function (el) { el.textContent = "…"; });
+    render(0);
+    timer = setInterval(function () {
+      n += 1;
+      render(n);
+      if (n >= LINES.length) {
+        clearInterval(timer); timer = null;
+        tallies.forEach(function (el, i) { el.textContent = finals[i]; });
+      }
+    }, 420);
+  });
+
+  var form = document.getElementById("intake");
+  var msg = document.getElementById("form-msg");
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var required = ["f-name", "f-email", "f-company"];
+    for (var i = 0; i < required.length; i++) {
+      var el = document.getElementById(required[i]);
+      if (!el.value.trim() || (el.type === "email" && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(el.value))) {
+        msg.className = "form-msg err";
+        msg.textContent = "Please add a valid " + el.previousElementSibling.textContent.toLowerCase() + ".";
+        el.focus();
+        return;
+      }
+    }
+    var endpoint = form.getAttribute("data-endpoint");
+    if (!endpoint) {
+      msg.className = "form-msg err";
+      msg.textContent = "Intake isn't connected yet, so nothing was sent.";
+      return;
+    }
+    msg.className = "form-msg";
+    msg.textContent = "Sending…";
+    fetch(endpoint, { method: "POST", body: new FormData(form) })
+      .then(function (r) {
+        if (!r.ok) throw new Error(r.status);
+        msg.className = "form-msg ok";
+        msg.textContent = "Received. We will follow up by email.";
+        form.reset();
+      })
+      .catch(function () {
+        msg.className = "form-msg err";
+        msg.textContent = "That didn't go through. Please try again in a minute.";
+      });
+  });
+})();
+</script>
+</body>
+</html>
