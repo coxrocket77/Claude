@@ -1,0 +1,33 @@
+description,gl_account,vendor,expected
+CNC vertical machining center,1510,Haas,MFG_EQUIPMENT
+Press brake 100 ton,1520,Accurpress,MFG_EQUIPMENT
+Fiber laser cutter 6kW,1510,Trumpf,MFG_EQUIPMENT
+Injection molding machine 300T,1510,Engel,MFG_EQUIPMENT
+Carbide insert CNMG 432,5110,Iscar,MFG_CONSUMABLE
+Argon shielding gas refill,5120,Airgas,MFG_CONSUMABLE
+Cutting fluid 55 gal,5110,Blaser,MFG_CONSUMABLE
+Mold release spray case,5110,Stoner,MFG_CONSUMABLE
+4140 steel bar stock,5010,Ryerson,COMPONENT
+Aluminum sheet 5052,5020,Ryerson,COMPONENT
+Socket head cap screws built into assembly,5030,Fastenal,COMPONENT
+Corrugated carton printed,5050,Uline,PACKAGING
+Stretch wrap pallets outbound,5050,Uline,PACKAGING
+Legal services contract review,6410,Law firm,PROFESSIONAL_SERVICE
+Annual audit fee,6420,CPA firm,PROFESSIONAL_SERVICE
+ERP SaaS subscription annual,6210,NetSuite,SAAS
+Cloud hosting monthly,6220,AWS,SAAS
+Electricity plant service kWh,6310,TXU,UTILITY
+Natural gas service,6320,Atmos,UTILITY
+LTL freight,5210,XPO,FREIGHT
+Electric forklift 5000lb,1550,Toyota,INTRAPLANT_TRANSPORT
+Pallet jack manual,1550,Uline,INTRAPLANT_TRANSPORT
+Torque wrench and socket set,5410,Snap-on,HAND_TOOL
+Digital caliper 6in,5410,Mitutoyo,HAND_TOOL
+Replacement spindle motor rebuild,5310,Spindle shop,REPAIR_PART
+Hydraulic pump replacement press,5310,Parker,REPAIR_PART
+Office chairs ergonomic,6110,Office Depot,OFFICE_ADMIN
+Copy paper and toner,6120,Office Depot,OFFICE_ADMIN
+Laptop for quality engineer,6150,Dell,OFFICE_ADMIN
+Janitorial cleaning supplies,6130,Cintas,OFFICE_ADMIN
+Widgets purchased for resale,4010,Distributor,RESALE
+Deburring brushes for parts,5110,Weiler,MFG_CONSUMABLE

@@ -1,0 +1,6 @@
+- 2026-11-10 04:31:59 ingest: done {"lines": 21, "errors": 0}
+- 2026-11-10 04:31:59 classify: done {"judge": "heuristic"}
+- 2026-11-10 04:31:59 review: done {"judge": "gl-map"}
+- 2026-11-10 04:31:59 evaluate: done 
+- 2026-11-10 04:31:59 gate: done {"blocked": false, "refund": 12295.8, "exposure": 2899.05}
+- 2026-11-10 04:31:59 packet: done {"files": 12, "seconds": 0.0}

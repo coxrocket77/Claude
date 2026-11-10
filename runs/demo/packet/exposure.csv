@@ -1,0 +1,4 @@
+row,vendor,invoice_no,invoice_date,description,amount,tax_charged,use_tax_accrued,category,confidence,reviewer_category,verdict,refund_amount,exposure_amount,rule_id,rule_cite,refund_route,gate_failures,notes
+14,Toyota Material Handling,TMH-11873,2024-02-16,Electric forklift 5000lb,32000.0,0.0,0.0,INTRAPLANT_TRANSPORT,0.85,INTRAPLANT_TRANSPORT,UNDERPAID,0.0,2640.0,USE_TAX_DUE_INTRAPLANT_TRANSPORT,Excluded by Tex. Tax Code §151.318(c),,,
+19,Snap Tools Route 14,ST-0921,2025-09-09,Socket set and torque wrench,1240.0,0.0,0.0,HAND_TOOL,0.8,HAND_TOOL,UNDERPAID,0.0,102.3,USE_TAX_DUE_HAND_TOOL,Excluded by Tex. Tax Code §151.318(c),,,
+20,Amazon Business,AMZ-11-55210,2026-02-02,Laptop for quality engineer,1900.0,0.0,0.0,OFFICE_ADMIN,0.8,OFFICE_ADMIN,UNDERPAID,0.0,156.75,USE_TAX_DUE_OFFICE_ADMIN,Tex. Tax Code §151.051,,,

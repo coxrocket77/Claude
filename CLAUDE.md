@@ -1,8 +1,36 @@
-# CLAUDE.md
+# recoup
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+An agent that reviews a company's accounts payable history, finds sales and use tax it overpaid, and drafts refund packets for a licensed preparer to approve.
 
-This repository is currently empty. Update this file as the project is established with build commands, architecture notes, and development workflows.
+## Commands
+
+- `python -m recoup.cli run <ap.csv> --client "<name>" --out runs/<slug>`: full review, resumable
+- `python -m recoup.cli status runs/<slug>`
+- `python -m recoup.cli eval evals/labeled.csv -v`: score the judges
+- `python -m recoup.cli tune evals/labeled.csv`: improvement loop on playbook.md (needs ANTHROPIC_API_KEY)
+- `python -m pytest -q`: must pass before any commit
+
+## How the system is split
+
+- Models classify purchases into a closed taxonomy (`recoup/classify.py`). They never compute tax.
+- Deterministic code computes every dollar (`recoup/engine.py`) from state rules stored as data (`recoup/rules.py`).
+- Two independent judges must agree. The reviewer never sees the classifier's answer.
+- Gates (`recoup/gates.py`) can block a line or the whole packet. Nothing a model writes overrides a gate.
+- `runs/<slug>/state.json` and `progress.md` are the harness. Read progress.md first when resuming.
+
+## Hard rules
+
+- Never approve a packet, write approval.json, or run `recoup approve`. A human does that. The hook enforces it.
+- Never file, submit or email anything. Packets are drafts.
+- Never edit `recoup/rules.py` or `recoup/gates.py`. Propose rule changes as a markdown file in `proposals/` with the statute or regulation cited from an official .gov source.
+- When a packet is blocked on EXPOSURE, explain the trade-off to the user. Do not suggest dropping exposure lines to get past the gate.
+- Report what the review queue needs from the client (studies, certificates, invoices) instead of guessing.
+
+## Subagents
+
+- `ledger-analyst`: runs a review and summarizes it
+- `tax-reviewer`: works the review queue line by line, read-only
+- `rules-researcher`: drafts a rule profile for a new state from official sources
 
 ## Operating Parameters
 

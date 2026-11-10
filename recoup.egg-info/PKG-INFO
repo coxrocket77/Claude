@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: recoup
+Version: 0.1.0
+Summary: Agent that finds overpaid sales and use tax and drafts refund packets
+Requires-Python: >=3.11
+Requires-Dist: anthropic>=2.0
+Requires-Dist: mcp>=2.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"

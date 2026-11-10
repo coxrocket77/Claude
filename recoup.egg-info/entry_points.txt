@@ -1,0 +1,3 @@
+[console_scripts]
+recoup = recoup.cli:main
+recoup-mcp = recoup.mcp_server:server.run

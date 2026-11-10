@@ -1,0 +1,22 @@
+Vendor Name,Invoice Number,Invoice Date,Line Description,Line Amount,Sales Tax,Use Tax,GL Account,Ship To State
+Haas Automation Dealer,HA-44120,2023-03-14,CNC vertical machining center VF-4,84000.00,6930.00,0.00,1510,TX
+Haas Automation Dealer,HA-44120,2023-03-14,Freight and rigging delivery charge,2400.00,198.00,0.00,5210,TX
+Gulf Coast Steel Supply,GCS-9981,2024-06-02,4140 steel bar stock 2in round,18250.00,1505.62,0.00,5010,TX
+Gulf Coast Steel Supply,GCS-9981,2024-06-02,LTL freight,640.00,52.80,0.00,5210,TX
+Gulf Coast Steel Supply,GCS-10442,2025-01-21,6061 aluminum plate stock,9400.00,775.50,0.00,5020,TX
+Iscar Tooling Direct,IT-55102,2024-09-10,Carbide insert CNMG 432 box of 10,3120.00,257.40,0.00,5110,TX
+Iscar Tooling Direct,IT-56877,2025-08-19,Solid carbide end mill 1/2in 4FL,2210.00,182.33,0.00,5110,TX
+Airgas Southwest,AG-771203,2025-02-11,Argon shielding gas cylinder refill,1860.00,153.45,153.45,5120,TX
+Brazos Packaging Co,BPC-3011,2024-11-05,Corrugated carton 24x18x12 printed,5600.00,462.00,0.00,5050,TX
+Patterson & Reyes LLP,PR-2024-118,2024-04-30,Legal services contract review,12500.00,1031.25,0.00,6410,TX
+CloudLedger Inc,CL-INV-8812,2025-05-01,ERP SaaS subscription annual,36000.00,2970.00,0.00,6210,TX
+Oncor / TXU Energy,TXU-202507,2025-07-31,Electricity service plant 1 kWh,21400.00,1765.50,0.00,6310,TX
+Toyota Material Handling,TMH-11873,2024-02-16,Electric forklift 5000lb,32000.00,0.00,0.00,1550,TX
+Office Depot,OD-88213,2025-10-03,Office chairs ergonomic qty 6,2100.00,173.25,0.00,6110,TX
+Office Depot,OD-90112,2026-01-15,Copy paper and toner,780.00,74.10,0.00,6120,TX
+Midwest Spindle Repair,MSR-2203,2025-03-27,Replacement spindle motor rebuild VF-2,7800.00,643.50,0.00,5310,TX
+Grainger,GR-1188732,2025-06-12,Shop supplies misc,1450.00,119.62,0.00,5130,TX
+Snap Tools Route 14,ST-0921,2025-09-09,Socket set and torque wrench,1240.00,0.00,0.00,5410,TX
+Amazon Business,AMZ-11-55210,2026-02-02,Laptop for quality engineer,1900.00,0.00,0.00,6150,TX
+Blaser Swisslube,BS-2025-07,2025-07-07,Cutting fluid 55 gal drum,410.00,33.83,0.00,5110,TX
+Okuma Dealer Texas,OK-2021-301,2021-08-19,CNC lathe LB3000 machining center,96000.00,7920.00,0.00,1510,TX

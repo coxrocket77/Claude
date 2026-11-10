@@ -1,0 +1,288 @@
+{
+ "created": "2026-11-10T04:31:58",
+ "nodes": {
+  "ingest": {
+   "status": "done",
+   "lines": 21,
+   "errors": 0
+  },
+  "classify": {
+   "status": "done",
+   "judge": "heuristic"
+  },
+  "review": {
+   "status": "done",
+   "judge": "gl-map"
+  },
+  "evaluate": {
+   "status": "done"
+  },
+  "gate": {
+   "status": "done",
+   "blocked": false,
+   "refund": 12295.8,
+   "exposure": 2899.05
+  },
+  "packet": {
+   "status": "done",
+   "files": 12,
+   "seconds": 0.0
+  }
+ },
+ "classifications": {
+  "903d5ee4439f755d": {
+   "category": "MFG_EQUIPMENT",
+   "confidence": 0.85,
+   "rationale": "keyword /\\b(cnc|lathe|mill(ing)? machine|press brake|injection mold(er|ing)|laser cutter|waterjet|machining center)\\b/",
+   "source": "heuristic"
+  },
+  "f8084be3fbde81be": {
+   "category": "FREIGHT",
+   "confidence": 0.9,
+   "rationale": "keyword /\\b(freight|shipping|delivery charge|delivery fee|ltl|fedex|ups ground)\\b/",
+   "source": "heuristic"
+  },
+  "cb246b5486d0cc2a": {
+   "category": "COMPONENT",
+   "confidence": 0.75,
+   "rationale": "keyword /\\b(steel|aluminum|bar stock|sheet metal|resin|raw material|plate stock|tubing)\\b/",
+   "source": "heuristic"
+  },
+  "c5bdd008fb06cd0f": {
+   "category": "FREIGHT",
+   "confidence": 0.9,
+   "rationale": "keyword /\\b(freight|shipping|delivery charge|delivery fee|ltl|fedex|ups ground)\\b/",
+   "source": "heuristic"
+  },
+  "a8f9b4969a7fe6a7": {
+   "category": "COMPONENT",
+   "confidence": 0.75,
+   "rationale": "keyword /\\b(steel|aluminum|bar stock|sheet metal|resin|raw material|plate stock|tubing)\\b/",
+   "source": "heuristic"
+  },
+  "e9a040a582e4f7f9": {
+   "category": "MFG_CONSUMABLE",
+   "confidence": 0.75,
+   "rationale": "keyword /\\b(coolant|cutting fluid|welding gas|argon|shielding gas|abrasive|mold release|end mill|carbide insert)\\b/",
+   "source": "heuristic"
+  },
+  "f5acc8ec6fa3c008": {
+   "category": "MFG_CONSUMABLE",
+   "confidence": 0.75,
+   "rationale": "keyword /\\b(coolant|cutting fluid|welding gas|argon|shielding gas|abrasive|mold release|end mill|carbide insert)\\b/",
+   "source": "heuristic"
+  },
+  "4540e39808fab312": {
+   "category": "MFG_CONSUMABLE",
+   "confidence": 0.75,
+   "rationale": "keyword /\\b(coolant|cutting fluid|welding gas|argon|shielding gas|abrasive|mold release|end mill|carbide insert)\\b/",
+   "source": "heuristic"
+  },
+  "f572fdba5bf58af6": {
+   "category": "PACKAGING",
+   "confidence": 0.75,
+   "rationale": "keyword /\\b(carton|corrugated|crate|shipping box|stretch wrap|product label)\\b/",
+   "source": "heuristic"
+  },
+  "086868e864d6447a": {
+   "category": "PROFESSIONAL_SERVICE",
+   "confidence": 0.85,
+   "rationale": "keyword /\\b(legal|attorney|audit fee|cpa|accounting|consulting|advisory|engineering design)\\b/",
+   "source": "heuristic"
+  },
+  "294477a1617aec16": {
+   "category": "SAAS",
+   "confidence": 0.85,
+   "rationale": "keyword /\\b(saas|subscription|cloud|hosted|software license|erp license|license renewal|platform fee)\\b/",
+   "source": "heuristic"
+  },
+  "eb0fb77d992c37a2": {
+   "category": "UTILITY",
+   "confidence": 0.85,
+   "rationale": "keyword /\\b(electricity|electric service|kwh|natural gas|utility|utilities)\\b/",
+   "source": "heuristic"
+  },
+  "9bf39add603c34d9": {
+   "category": "INTRAPLANT_TRANSPORT",
+   "confidence": 0.85,
+   "rationale": "keyword /\\b(forklifts?|pallet jacks?|hand trucks?|conveyors?|order pickers?)\\b/",
+   "source": "heuristic"
+  },
+  "09425b08384f5640": {
+   "category": "OFFICE_ADMIN",
+   "confidence": 0.8,
+   "rationale": "keyword /\\b(paper|toner|desks?|chairs?|breakroom|coffee|janitorial|cleaning supplies|laptops?|monitors?)\\b/",
+   "source": "heuristic"
+  },
+  "d1777911e79ec9a5": {
+   "category": "OFFICE_ADMIN",
+   "confidence": 0.8,
+   "rationale": "keyword /\\b(paper|toner|desks?|chairs?|breakroom|coffee|janitorial|cleaning supplies|laptops?|monitors?)\\b/",
+   "source": "heuristic"
+  },
+  "0c0800a6eda994e2": {
+   "category": "REPAIR_PART",
+   "confidence": 0.75,
+   "rationale": "keyword /\\b(replacement|spindle motor|bearing|belt|hydraulic pump|repair kit|seal kit|rebuild)\\b/",
+   "source": "heuristic"
+  },
+  "7fc2aada66b7ca39": {
+   "category": "UNKNOWN",
+   "confidence": 0.0,
+   "rationale": "no keyword matched",
+   "source": "heuristic"
+  },
+  "62005cab3f1ca45f": {
+   "category": "HAND_TOOL",
+   "confidence": 0.8,
+   "rationale": "keyword /\\b(wrench|caliper|screwdriver|hammer|hand tool|cordless drill|angle grinder|socket set)\\b/",
+   "source": "heuristic"
+  },
+  "1e997965d99e1725": {
+   "category": "OFFICE_ADMIN",
+   "confidence": 0.8,
+   "rationale": "keyword /\\b(paper|toner|desks?|chairs?|breakroom|coffee|janitorial|cleaning supplies|laptops?|monitors?)\\b/",
+   "source": "heuristic"
+  },
+  "c67cd868ec8fead7": {
+   "category": "MFG_CONSUMABLE",
+   "confidence": 0.75,
+   "rationale": "keyword /\\b(coolant|cutting fluid|welding gas|argon|shielding gas|abrasive|mold release|end mill|carbide insert)\\b/",
+   "source": "heuristic"
+  },
+  "d2c199fb968d414d": {
+   "category": "MFG_EQUIPMENT",
+   "confidence": 0.85,
+   "rationale": "keyword /\\b(cnc|lathe|mill(ing)? machine|press brake|injection mold(er|ing)|laser cutter|waterjet|machining center)\\b/",
+   "source": "heuristic"
+  }
+ },
+ "reviews": {
+  "903d5ee4439f755d": {
+   "category": "MFG_EQUIPMENT",
+   "confidence": 0.8,
+   "rationale": "GL 1510",
+   "source": "gl-map"
+  },
+  "f8084be3fbde81be": {
+   "category": "FREIGHT",
+   "confidence": 0.8,
+   "rationale": "GL 5210",
+   "source": "gl-map"
+  },
+  "cb246b5486d0cc2a": {
+   "category": "COMPONENT",
+   "confidence": 0.8,
+   "rationale": "GL 5010",
+   "source": "gl-map"
+  },
+  "c5bdd008fb06cd0f": {
+   "category": "FREIGHT",
+   "confidence": 0.8,
+   "rationale": "GL 5210",
+   "source": "gl-map"
+  },
+  "a8f9b4969a7fe6a7": {
+   "category": "COMPONENT",
+   "confidence": 0.8,
+   "rationale": "GL 5020",
+   "source": "gl-map"
+  },
+  "e9a040a582e4f7f9": {
+   "category": "MFG_CONSUMABLE",
+   "confidence": 0.8,
+   "rationale": "GL 5110",
+   "source": "gl-map"
+  },
+  "f5acc8ec6fa3c008": {
+   "category": "MFG_CONSUMABLE",
+   "confidence": 0.8,
+   "rationale": "GL 5110",
+   "source": "gl-map"
+  },
+  "4540e39808fab312": {
+   "category": "MFG_CONSUMABLE",
+   "confidence": 0.8,
+   "rationale": "GL 5120",
+   "source": "gl-map"
+  },
+  "f572fdba5bf58af6": {
+   "category": "PACKAGING",
+   "confidence": 0.8,
+   "rationale": "GL 5050",
+   "source": "gl-map"
+  },
+  "086868e864d6447a": {
+   "category": "PROFESSIONAL_SERVICE",
+   "confidence": 0.8,
+   "rationale": "GL 6410",
+   "source": "gl-map"
+  },
+  "294477a1617aec16": {
+   "category": "SAAS",
+   "confidence": 0.8,
+   "rationale": "GL 6210",
+   "source": "gl-map"
+  },
+  "eb0fb77d992c37a2": {
+   "category": "UTILITY",
+   "confidence": 0.8,
+   "rationale": "GL 6310",
+   "source": "gl-map"
+  },
+  "9bf39add603c34d9": {
+   "category": "INTRAPLANT_TRANSPORT",
+   "confidence": 0.8,
+   "rationale": "GL 1550",
+   "source": "gl-map"
+  },
+  "09425b08384f5640": {
+   "category": "OFFICE_ADMIN",
+   "confidence": 0.8,
+   "rationale": "GL 6110",
+   "source": "gl-map"
+  },
+  "d1777911e79ec9a5": {
+   "category": "OFFICE_ADMIN",
+   "confidence": 0.8,
+   "rationale": "GL 6120",
+   "source": "gl-map"
+  },
+  "0c0800a6eda994e2": {
+   "category": "REPAIR_PART",
+   "confidence": 0.8,
+   "rationale": "GL 5310",
+   "source": "gl-map"
+  },
+  "7fc2aada66b7ca39": {
+   "category": "MFG_CONSUMABLE",
+   "confidence": 0.8,
+   "rationale": "GL 5130",
+   "source": "gl-map"
+  },
+  "62005cab3f1ca45f": {
+   "category": "HAND_TOOL",
+   "confidence": 0.8,
+   "rationale": "GL 5410",
+   "source": "gl-map"
+  },
+  "1e997965d99e1725": {
+   "category": "OFFICE_ADMIN",
+   "confidence": 0.8,
+   "rationale": "GL 6150",
+   "source": "gl-map"
+  },
+  "c67cd868ec8fead7": {
+   "category": "MFG_CONSUMABLE",
+   "confidence": 0.8,
+   "rationale": "GL 5110",
+   "source": "gl-map"
+  },
+  "d2c199fb968d414d": {
+   "category": "MFG_EQUIPMENT",
+   "confidence": 0.8,
+   "rationale": "GL 1510",
+   "source": "gl-map"
+  }
+ }
+}

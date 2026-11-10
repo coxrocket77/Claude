@@ -1,0 +1,20 @@
+[project]
+name = "recoup"
+version = "0.1.0"
+description = "Agent that finds overpaid sales and use tax and drafts refund packets"
+requires-python = ">=3.11"
+dependencies = ["anthropic>=2.0", "mcp>=2.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+recoup = "recoup.cli:main"
+recoup-mcp = "recoup.mcp_server:server.run"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["recoup"]
