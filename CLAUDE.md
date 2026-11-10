@@ -2,7 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-This repository is currently empty. Update this file as the project is established with build commands, architecture notes, and development workflows.
+## Project
+
+`site/` holds a static redesign of extremec.com (Extreme Construction & Rehab, Addison TX). No build tooling and no dependencies.
+
+- `site/index.html` is the source of truth for the shared shell (head, icon sprite, header, footer).
+- `services.html` and `about.html` are generated. Edit `site/_src/*.main.html`, then run `python3 site/_src/build.py`.
+- Preview: `cd site && python3 -m http.server 8765`.
+- `site/README.md` lists the claims that still need owner verification and the lead-form wiring (`FORM_ENDPOINT` in `assets/main.js`).
 
 ## Operating Parameters
 
